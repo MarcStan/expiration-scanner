@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Configuration;
 using System.Collections.Generic;
 
-namespace ExpirationScanner.Extensions
+namespace ExpirationScanner.Logic.Extensions
 {
     public static class ConfigurationExtensions
     {

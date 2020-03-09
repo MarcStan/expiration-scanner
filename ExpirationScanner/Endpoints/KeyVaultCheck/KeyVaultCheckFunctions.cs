@@ -1,4 +1,5 @@
 using ExpirationScanner.Azure;
+using ExpirationScanner.Logic.Azure;
 using ExpirationScanner.Services;
 using Microsoft.Azure.KeyVault;
 using Microsoft.Azure.KeyVault.Models;
@@ -8,7 +9,6 @@ using Microsoft.Azure.Management.ResourceManager.Fluent.Core;
 using Microsoft.Azure.WebJobs;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using Microsoft.Rest;
 using Microsoft.Rest.Azure;
 using System;
@@ -22,21 +22,21 @@ namespace ExpirationScanner.Endpoints.KeyVaultCheck
 {
     public class KeyVaultCheckFunctions
     {
-        private readonly IConfiguration config;
-        private readonly ISlackService slackService;
-        private readonly AzureManagementOptions azureManagementOptions;
-        private readonly AzureManagementTokenProvider azureManagementTokenProvider;
+        private readonly IConfiguration _config;
+        private readonly IAzureHelper _azureHelper;
+        private readonly ISlackService _slackService;
+        private readonly AzureManagementTokenProvider _azureManagementTokenProvider;
 
         public KeyVaultCheckFunctions(
             IConfiguration config,
+            IAzureHelper azureHelper,
             ISlackService slackService,
-            IOptionsSnapshot<AzureManagementOptions> azureManagementOptionsSnapshot,
             AzureManagementTokenProvider azureManagementTokenProvider)
         {
-            this.config = config;
-            this.slackService = slackService;
-            this.azureManagementOptions = azureManagementOptionsSnapshot.Value;
-            this.azureManagementTokenProvider = azureManagementTokenProvider;
+            _config = config;
+            _azureHelper = azureHelper;
+            _slackService = slackService;
+            _azureManagementTokenProvider = azureManagementTokenProvider;
         }
 
         [FunctionName("CheckVaultExpiry")]
@@ -46,27 +46,29 @@ namespace ExpirationScanner.Endpoints.KeyVaultCheck
             // , RunOnStartup=true
 #endif
             )]TimerInfo myTimer,
-            ILogger log)
+            ILogger log,
+            CancellationToken cancellationToken)
         {
-            var subscription = azureManagementOptions.SubscriptionId;
+            var ignoreFilter = (_config["IGNORED_KEYVAULTS"] ?? string.Empty).Split(',').Select(v => v.Trim());
 
-            var ignoreFilter = (config["IGNORED_KEYVAULTS"] ?? string.Empty).Split(',').Select(v => v.Trim());
-
-            var certificateExpiryWarningInDays = int.Parse(config["CERTIFICATE_WARNING_THRESHOLD"] ?? "30");
-            var secretExpiryWarningInDays = int.Parse(config["SECRET_WARNING_THRESHOLD"] ?? "30");
+            var certificateExpiryWarningInDays = int.Parse(_config["CERTIFICATE_WARNING_THRESHOLD"] ?? "30");
+            var secretExpiryWarningInDays = int.Parse(_config["SECRET_WARNING_THRESHOLD"] ?? "30");
 
             var factory = new MSITokenProviderFactory(new MSILoginInformation(MSIResourceType.AppService));
             KeyVaultClient kvClient = new KeyVaultClient(new KeyVaultClient.AuthenticationCallback(async (authority, resource, scope) =>
             {
-                return (await factory.Create(resource).GetAuthenticationHeaderAsync(default(CancellationToken))).Parameter;
+                return (await factory.Create(resource).GetAuthenticationHeaderAsync(cancellationToken)).Parameter;
             }));
 
-            var tokenCredentials = new TokenCredentials(azureManagementTokenProvider);
+            var tokenCredentials = new TokenCredentials(_azureManagementTokenProvider);
+
+            var tenantId = await _azureHelper.GetTenantIdAsync(cancellationToken);
+            var subscriptionId = _azureHelper.GetSubscriptionId();
 
             var azureCredentials = new AzureCredentials(
                     tokenCredentials,
                     tokenCredentials,
-                    azureManagementOptions.TenantId,
+                    tenantId,
                     AzureEnvironment.AzureGlobalCloud);
 
             var client = RestClient
@@ -77,8 +79,8 @@ namespace ExpirationScanner.Endpoints.KeyVaultCheck
                     .Build();
 
             var azure = Microsoft.Azure.Management.Fluent.Azure
-                .Authenticate(client, azureManagementOptions.TenantId)
-                .WithSubscription(azureManagementOptions.SubscriptionId);
+                .Authenticate(client, tenantId)
+                .WithSubscription(subscriptionId);
 
             var errors = new List<String>();
 
@@ -162,11 +164,11 @@ namespace ExpirationScanner.Endpoints.KeyVaultCheck
                         }
                     }
 
-                    await slackService.SendSlackMessageAsync(sbSlack.ToString());
+                    await _slackService.SendSlackMessageAsync(sbSlack.ToString());
                 }
             }
 
-            await slackService.SendSlackMessageAsync(string.Join("\n", errors));
+            await _slackService.SendSlackMessageAsync(string.Join("\n", errors));
         }
     }
 }

@@ -10,7 +10,7 @@ namespace ExpirationScanner.Azure
     public class AzureManagementTokenProvider : ITokenProvider
     {
         private static Lazy<AzureServiceTokenProvider> _lazyAzureServiceTokenProvider =
-            new Lazy<AzureServiceTokenProvider>(() => new AzureServiceTokenProvider(null, "https://login.microsoftonline.com/"));
+            new Lazy<AzureServiceTokenProvider>(() => new AzureServiceTokenProvider());
 
         public async Task<AuthenticationHeaderValue> GetAuthenticationHeaderAsync(CancellationToken cancellationToken)
         {

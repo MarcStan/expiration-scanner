@@ -5,6 +5,10 @@ VisualStudioVersion = 16.0.29827.131
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ExpirationScanner", "ExpirationScanner\ExpirationScanner.csproj", "{DCA570D1-C7CD-48B9-B0FA-0A77E5F32F57}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ExpirationScanner.Logic", "ExpirationScanner.Logic\ExpirationScanner.Logic.csproj", "{15B18D88-79E5-44BE-BE60-922D8DF249A2}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ExpirationScanner.Tests", "ExpirationScanner.Tests\ExpirationScanner.Tests.csproj", "{C7A47B2A-367A-4596-AAAE-C4163A10B40A}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -15,6 +19,14 @@ Global
 		{DCA570D1-C7CD-48B9-B0FA-0A77E5F32F57}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{DCA570D1-C7CD-48B9-B0FA-0A77E5F32F57}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{DCA570D1-C7CD-48B9-B0FA-0A77E5F32F57}.Release|Any CPU.Build.0 = Release|Any CPU
+		{15B18D88-79E5-44BE-BE60-922D8DF249A2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{15B18D88-79E5-44BE-BE60-922D8DF249A2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{15B18D88-79E5-44BE-BE60-922D8DF249A2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{15B18D88-79E5-44BE-BE60-922D8DF249A2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C7A47B2A-367A-4596-AAAE-C4163A10B40A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C7A47B2A-367A-4596-AAAE-C4163A10B40A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C7A47B2A-367A-4596-AAAE-C4163A10B40A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C7A47B2A-367A-4596-AAAE-C4163A10B40A}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

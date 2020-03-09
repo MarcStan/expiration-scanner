@@ -1,6 +1,6 @@
 using ExpirationScanner.Azure;
-using ExpirationScanner.Extensions;
 using ExpirationScanner.Graph;
+using ExpirationScanner.Logic.Extensions;
 using ExpirationScanner.Services;
 using Microsoft.Azure.Functions.Extensions.DependencyInjection;
 using Microsoft.Azure.WebJobs.Host.Bindings;
@@ -27,7 +27,6 @@ namespace ExpirationScanner
 
             builder.Services.AddHttpClient();
 
-            builder.Services.Configure<AzureManagementOptions>(config.GetSection("AzureManagement"));
             builder.Services.Configure<TenantOptions>(config.GetSection("TenantConfig"));
 
             builder.Services.AddSingleton<AzureManagementTokenProvider>();
