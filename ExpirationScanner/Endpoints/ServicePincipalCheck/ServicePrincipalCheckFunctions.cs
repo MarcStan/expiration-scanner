@@ -1,33 +1,33 @@
-using ExpirationScanner.Graph;
-using ExpirationScanner.Services;
+using ExpirationScanner.Logic.Azure;
+using ExpirationScanner.Logic.Notification;
 using Microsoft.Azure.WebJobs;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using Microsoft.Graph;
 using Microsoft.Graph.Auth;
 using Microsoft.Identity.Client;
 using System;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace ExpirationScanner.Endpoints.ServicePrincipalCheck
 {
     public class ServicePrincipalCheckFunctions
     {
-        private readonly IConfiguration config;
-        private readonly ISlackService slackService;
-        private readonly TenantOptions tenantOptions;
+        private readonly IConfiguration _configuration;
+        private readonly IAzureHelper _azureHelper;
+        private readonly INotificationService _notificationService;
 
         public ServicePrincipalCheckFunctions(
-            IConfiguration config,
-            IOptionsSnapshot<TenantOptions> tenantOptionsSapshot,
-            ISlackService slackService)
+            IConfiguration configuration,
+            IAzureHelper azureHelper,
+            INotificationService notificationService)
         {
-            this.config = config;
-            this.tenantOptions = tenantOptionsSapshot.Value;
-            this.slackService = slackService;
+            _configuration = configuration;
+            _azureHelper = azureHelper;
+            _notificationService = notificationService;
         }
 
         [FunctionName("CheckServicePrincipalExpiry")]
@@ -37,78 +37,55 @@ namespace ExpirationScanner.Endpoints.ServicePrincipalCheck
             // , RunOnStartup=true
 #endif
             )]TimerInfo myTimer,
-            ILogger log)
+            ILogger log,
+            CancellationToken cancellationToken)
         {
-            var secretExpiryWaringInDays = int.Parse(config["SECRET_WARNING_THRESHOLD"] ?? "30");
-            var ignoreFilter = (config["IGNORED_APPS"] ?? string.Empty).Split(',').Select(v => v.Trim());
+            var secretExpiryWaringInDays = int.Parse(_configuration["SECRET_WARNING_THRESHOLD"] ?? "30");
+            var appFilter = (_configuration["ApplicationWhitelist"] ?? string.Empty).Split(',').Select(v => v.Trim());
 
-            if ((tenantOptions.Tenants ?? Array.Empty<TenantAccessor>()).Length == 0)
+            var tenantId = await _azureHelper.GetTenantIdAsync(cancellationToken);
+            IConfidentialClientApplication confidentialClientApplication = ConfidentialClientApplicationBuilder
+                .Create("TODO")
+                .WithTenantId(tenantId)
+                .WithClientSecret("TODO")
+                .Build();
+
+            ClientCredentialProvider authProvider = new ClientCredentialProvider(confidentialClientApplication);
+
+            var graphServiceClient = new GraphServiceClient(authProvider);
+
+            await foreach (var app in graphServiceClient.Applications.Request().Expand("owners").ToAsyncEnumerable())
             {
-                log.LogWarning("No tenants configured to scan for expired service principal credentials");
-            }
+                if (appFilter.Contains(app.DisplayName))
+                    continue;
 
-            foreach (var tenant in tenantOptions.Tenants)
-            {
-                IConfidentialClientApplication confidentialClientApplication = ConfidentialClientApplicationBuilder
-                    .Create(tenant.ClientId)
-                    .WithTenantId(tenant.TenantId)
-                    .WithClientSecret(tenant.ClientSecret)
-                    .Build();
+                var expiringCertificates = app.KeyCredentials.Where(k => k.EndDateTime < DateTime.Now.AddDays(secretExpiryWaringInDays));
+                var expiringSecrets = app.PasswordCredentials.Where(k => k.EndDateTime < DateTime.Now.AddDays(secretExpiryWaringInDays));
 
-                ClientCredentialProvider authProvider = new ClientCredentialProvider(confidentialClientApplication);
-
-                var graphServiceClient = new GraphServiceClient(authProvider);
-
-                await foreach (var app in graphServiceClient.Applications.Request().Expand("owners").ToAsyncEnumerable())
+                if (expiringCertificates.Any() || expiringSecrets.Any())
                 {
-                    if (!IsServicePrincipalAppOwner(app, tenant.ClientId) || ignoreFilter.Contains(app.DisplayName))
+                    var warning = new ServicePrincipalWarning(app);
+                    warning.ExpiringCertificates = expiringCertificates;
+                    warning.ExpiringSecrets = expiringSecrets;
+
+                    var sbSlack = new StringBuilder();
+                    sbSlack.AppendLine($"Application {app.DisplayName} in Tenant {tenantId} has credentials about to expire:");
+
+                    foreach (var certificate in warning.ExpiringCertificates)
                     {
-                        continue;
+                        var description = Convert.ToBase64String(certificate.CustomKeyIdentifier);
+                        sbSlack.AppendLine($"\t• Certificate: {(certificate.EndDateTime < DateTime.UtcNow ? "⚠️ EXPIRED ⚠️" : "")} {description} - Created: {certificate.StartDateTime?.ToString("g")}\t Expires: {certificate.EndDateTime?.ToString("g")}");
                     }
 
-                    var expiringCertificates = app.KeyCredentials.Where(k => k.EndDateTime < DateTime.Now.AddDays(secretExpiryWaringInDays));
-                    var expiringSecrets = app.PasswordCredentials.Where(k => k.EndDateTime < DateTime.Now.AddDays(secretExpiryWaringInDays));
-
-                    if (expiringCertificates.Any() || expiringSecrets.Any())
+                    foreach (var secret in warning.ExpiringSecrets)
                     {
-                        var warning = new ServicePrincipalWarning(app);
-                        warning.ExpiringCertificates = expiringCertificates;
-                        warning.ExpiringSecrets = expiringSecrets;
-
-                        var sbSlack = new StringBuilder();
-                        sbSlack.AppendLine($"Application {app.DisplayName} in Tenant {tenant.TenantId} has credentials about to expire:");
-
-                        foreach (var certificate in warning.ExpiringCertificates)
-                        {
-                            var description = Convert.ToBase64String(certificate.CustomKeyIdentifier);
-                            sbSlack.AppendLine($"\t• Certificate: {(certificate.EndDateTime < DateTime.UtcNow ? "⚠️ EXPIRED ⚠️" : "")} {description} - Created: {certificate.StartDateTime?.ToString("g")}\t Expires: {certificate.EndDateTime?.ToString("g")}");
-                        }
-
-                        foreach (var secret in warning.ExpiringSecrets)
-                        {
-                            var description = secret.CustomKeyIdentifier != null ? Encoding.Unicode.GetString(secret.CustomKeyIdentifier) : "No description";
-                            sbSlack.AppendLine($"\t• Secret: {(secret.EndDateTime < DateTime.UtcNow ? "⚠️ EXPIRED ⚠️" : "")} {description} - Created: {secret.StartDateTime?.ToString("g")}\t Expires: {secret.EndDateTime?.ToString("g")}");
-                        }
-
-                        await slackService.SendSlackMessageAsync(sbSlack.ToString());
+                        var description = secret.CustomKeyIdentifier != null ? Encoding.Unicode.GetString(secret.CustomKeyIdentifier) : "No description";
+                        sbSlack.AppendLine($"\t• Secret: {(secret.EndDateTime < DateTime.UtcNow ? "⚠️ EXPIRED ⚠️" : "")} {description} - Created: {secret.StartDateTime?.ToString("g")}\t Expires: {secret.EndDateTime?.ToString("g")}");
                     }
+
+                    await _notificationService.SendNotificationAsync(sbSlack.ToString(), cancellationToken);
                 }
             }
-        }
-
-        private bool IsServicePrincipalAppOwner(Application app, string servicePrincipalApplicationId)
-        {
-            return app.Owners.Any(o =>
-                    {
-                        if (o is ServicePrincipal sp)
-                        {
-                            return sp.AppId == servicePrincipalApplicationId;
-                        }
-                        else
-                        {
-                            return false;
-                        }
-                    });
         }
     }
 }

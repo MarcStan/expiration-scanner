@@ -1,6 +1,6 @@
 using ExpirationScanner.Azure;
 using ExpirationScanner.Logic.Azure;
-using ExpirationScanner.Services;
+using ExpirationScanner.Logic.Notification;
 using Microsoft.Azure.KeyVault;
 using Microsoft.Azure.KeyVault.Models;
 using Microsoft.Azure.Management.ResourceManager.Fluent;
@@ -24,18 +24,18 @@ namespace ExpirationScanner.Endpoints.KeyVaultCheck
     {
         private readonly IConfiguration _config;
         private readonly IAzureHelper _azureHelper;
-        private readonly ISlackService _slackService;
+        private readonly INotificationService _notificationService;
         private readonly AzureManagementTokenProvider _azureManagementTokenProvider;
 
         public KeyVaultCheckFunctions(
             IConfiguration config,
             IAzureHelper azureHelper,
-            ISlackService slackService,
+            INotificationService slackService,
             AzureManagementTokenProvider azureManagementTokenProvider)
         {
             _config = config;
             _azureHelper = azureHelper;
-            _slackService = slackService;
+            _notificationService = slackService;
             _azureManagementTokenProvider = azureManagementTokenProvider;
         }
 
@@ -164,11 +164,12 @@ namespace ExpirationScanner.Endpoints.KeyVaultCheck
                         }
                     }
 
-                    await _slackService.SendSlackMessageAsync(sbSlack.ToString());
+                    await _notificationService.SendNotificationAsync(sbSlack.ToString(), cancellationToken);
                 }
             }
 
-            await _slackService.SendSlackMessageAsync(string.Join("\n", errors));
+            if (errors.Any())
+                await _notificationService.SendNotificationAsync(string.Join("\n", errors), cancellationToken);
         }
     }
 }
