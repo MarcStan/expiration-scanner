@@ -1,0 +1,61 @@
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+.vs
+**/[Bb]in/
+**/[Oo]bj/
+**/[Dd]ebug/
+**/[Rr]elease/
+**/packages/*
+**/_ReSharper.Caches/*
+**/.temporary/*
+**/.cache/*
+**/.resources/*
+**/AppPackages/
+
+# Visual C++ cache files
+**/ipch/
+*.aps
+*.ncb
+*.opensdf
+*.sdf
+*.cachefile
+
+# System file crap
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store
+
+#.Net core
+project.lock.json
+*.nuget.props
+*.nuget.targets
+launchSettings.json
+
+# Auto. generated resources
+
+icogen.exe
+vpatch.exe
+Resource.Designer.cs
+**/src/**/*.png
+iTunesArtwork
+iTunesArtwork@2x
+
+
+# UWP generated packages
+
+BundleArtifacts/
+*.appx
+**/_pkginfo.txt
+icogen.exe
+vpatch.exe
+
+# ignore temp files
+**/App_Data/*
+**/logs/*
+
+# Azure Functions localsettings file
+local.settings.json
