@@ -100,9 +100,7 @@ namespace ExpirationScanner.Logic
             }
         }
 
-        private bool Matches(object displayName, string[] appFilter)
-        {
-            throw new NotImplementedException();
-        }
+        private bool Matches(string name, string[] appFilter)
+            => WhitelistHelper.Matches(name, appFilter);
     }
 }

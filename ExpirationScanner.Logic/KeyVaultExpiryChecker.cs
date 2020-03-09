@@ -155,8 +155,6 @@ namespace ExpirationScanner.Logic
         }
 
         private bool Matches(string name, string[] keyVaultFilter)
-        {
-            throw new NotImplementedException();
-        }
+            => WhitelistHelper.Matches(name, keyVaultFilter);
     }
 }
