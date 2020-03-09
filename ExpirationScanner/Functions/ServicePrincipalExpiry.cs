@@ -1,4 +1,6 @@
+using ExpirationScanner.Logic;
 using ExpirationScanner.Logic.Azure;
+using ExpirationScanner.Logic.Extensions;
 using ExpirationScanner.Logic.Notification;
 using Microsoft.Azure.WebJobs;
 using Microsoft.Extensions.Configuration;
@@ -12,15 +14,15 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace ExpirationScanner.Endpoints.ServicePrincipalCheck
+namespace ExpirationScanner.Functions
 {
-    public class ServicePrincipalCheckFunctions
+    public class ServicePrincipalExpiry
     {
         private readonly IConfiguration _configuration;
         private readonly IAzureHelper _azureHelper;
         private readonly INotificationService _notificationService;
 
-        public ServicePrincipalCheckFunctions(
+        public ServicePrincipalExpiry(
             IConfiguration configuration,
             IAzureHelper azureHelper,
             INotificationService notificationService)
@@ -30,9 +32,9 @@ namespace ExpirationScanner.Endpoints.ServicePrincipalCheck
             _notificationService = notificationService;
         }
 
-        [FunctionName("CheckServicePrincipalExpiry")]
+        [FunctionName("serviceprincipal-expiry")]
         public async Task Run(
-            [TimerTrigger("0 0 8 * * *"
+            [TimerTrigger(Schedules.ServicePrincipalExpirySchedule
 #if DEBUG
             // , RunOnStartup=true
 #endif

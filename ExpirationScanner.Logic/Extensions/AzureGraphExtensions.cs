@@ -1,7 +1,7 @@
 using Microsoft.Graph;
 using System.Collections.Generic;
 
-namespace ExpirationScanner.Endpoints.ServicePrincipalCheck
+namespace ExpirationScanner.Logic.Extensions
 {
     public static class AzureGraphExtensions
     {

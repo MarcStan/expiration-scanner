@@ -1,7 +1,7 @@
 using Microsoft.Azure.Management.ResourceManager.Fluent.Core.CollectionActions;
 using System.Collections.Generic;
 
-namespace ExpirationScanner.Endpoints.KeyVaultCheck
+namespace ExpirationScanner.Logic.Extensions
 {
     public static class AzureFluentExtensions
     {

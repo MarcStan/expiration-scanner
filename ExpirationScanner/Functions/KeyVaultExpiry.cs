@@ -1,5 +1,7 @@
 using ExpirationScanner.Azure;
+using ExpirationScanner.Logic;
 using ExpirationScanner.Logic.Azure;
+using ExpirationScanner.Logic.Extensions;
 using ExpirationScanner.Logic.Notification;
 using Microsoft.Azure.KeyVault;
 using Microsoft.Azure.KeyVault.Models;
@@ -8,7 +10,6 @@ using Microsoft.Azure.Management.ResourceManager.Fluent.Authentication;
 using Microsoft.Azure.Management.ResourceManager.Fluent.Core;
 using Microsoft.Azure.WebJobs;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
 using Microsoft.Rest;
 using Microsoft.Rest.Azure;
 using System;
@@ -18,16 +19,16 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace ExpirationScanner.Endpoints.KeyVaultCheck
+namespace ExpirationScanner.Functions
 {
-    public class KeyVaultCheckFunctions
+    public class KeyVaultExpiry
     {
         private readonly IConfiguration _config;
         private readonly IAzureHelper _azureHelper;
         private readonly INotificationService _notificationService;
         private readonly AzureManagementTokenProvider _azureManagementTokenProvider;
 
-        public KeyVaultCheckFunctions(
+        public KeyVaultExpiry(
             IConfiguration config,
             IAzureHelper azureHelper,
             INotificationService slackService,
@@ -39,14 +40,13 @@ namespace ExpirationScanner.Endpoints.KeyVaultCheck
             _azureManagementTokenProvider = azureManagementTokenProvider;
         }
 
-        [FunctionName("CheckVaultExpiry")]
+        [FunctionName("keyvault-expiry")]
         public async Task Run(
-            [TimerTrigger("0 0 8 * * *"
+            [TimerTrigger(Schedules.KeyVaultExpirySchedule
 #if DEBUG
-            // , RunOnStartup=true
+            , RunOnStartup = true
 #endif
-            )]TimerInfo myTimer,
-            ILogger log,
+            )] TimerInfo myTimer,
             CancellationToken cancellationToken)
         {
             var ignoreFilter = (_config["IGNORED_KEYVAULTS"] ?? string.Empty).Split(',').Select(v => v.Trim());
