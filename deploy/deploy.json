@@ -1,0 +1,110 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+    },
+    "variables": {
+        "appInsightsName": "[resourceGroup().name]",
+        "storageAccountName": "[concat(toLower(replace(resourceGroup().name, '-', '')), '2')]",
+        "storageAccountId": "[concat(resourceGroup().id,'/providers/','Microsoft.Storage/storageAccounts/', variables('storageAccountName'))]",
+        "functionAppName": "[resourceGroup().name]",
+        "hostingPlanName": "[resourceGroup().name]"
+    },
+    "resources": [
+        {
+            "type": "microsoft.insights/components",
+            "kind": "other",
+            "name": "[variables('appInsightsName')]",
+            "apiVersion": "2014-04-01",
+            "location": "[resourceGroup().location]",
+            "tags": {
+            },
+            "scale": null,
+            "properties": {
+                "ApplicationId": "[variables('appInsightsName')]"
+            },
+            "dependsOn": [
+            ]
+        },
+        {
+            "type": "Microsoft.Storage/storageAccounts",
+            "sku": {
+                "name": "Standard_LRS",
+                "tier": "Standard"
+            },
+            "kind": "StorageV2",
+            "name": "[variables('storageAccountName')]",
+            "apiVersion": "2018-07-01",
+            "location": "[resourceGroup().location]",
+            "tags": {
+            },
+            "properties": {
+                "supportsHttpsTrafficOnly": true,
+                "encryption": {
+                    "services": {
+                        "file": {
+                            "enabled": true
+                        },
+                        "blob": {
+                            "enabled": true
+                        }
+                    },
+                    "keySource": "Microsoft.Storage"
+                },
+                "accessTier": "Hot"
+            },
+            "dependsOn": [
+            ]
+        },
+        {
+            "type": "Microsoft.Web/serverfarms",
+            "apiVersion": "2018-02-01",
+            "name": "[variables('hostingPlanName')]",
+            "location": "[resourceGroup().location]",
+            "sku": {
+                "name": "Y1"
+            }
+        },
+        {
+            "apiVersion": "2015-08-01",
+            "type": "Microsoft.Web/sites",
+            "name": "[variables('functionAppName')]",
+            "location": "[resourceGroup().location]",
+            "kind": "functionapp",
+            "dependsOn": [
+                "[resourceId('Microsoft.Web/serverfarms', variables('hostingPlanName'))]",
+                "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
+            ],
+            "properties": {
+                "serverFarmId": "[resourceId('Microsoft.Web/serverfarms', variables('hostingPlanName'))]",
+                "httpsOnly": true,
+                "siteConfig": {
+                    "loadBalancing": "LeastRequests",
+                    "minTlsVersion": "1.2",
+                    "ftpsState": "Disabled"
+                }
+            },
+            "resources": [
+                {
+                    "type": "config",
+                    "apiVersion": "2016-08-01",
+                    "name": "appsettings",
+                    "dependsOn": [
+                        "[resourceId('Microsoft.Web/sites', variables('functionAppName'))]"
+                    ],
+                    "properties": {
+                        "AzureWebJobsDashboard": "[concat('DefaultEndpointsProtocol=https;AccountName=', variables('storageAccountName'), ';AccountKey=', listKeys(variables('storageAccountId'),'2015-05-01-preview').key1)]",
+                        "AzureWebJobsStorage": "[concat('DefaultEndpointsProtocol=https;AccountName=', variables('storageAccountName'), ';AccountKey=', listKeys(variables('storageAccountId'),'2015-05-01-preview').key1)]",
+                        "WEBSITE_CONTENTAZUREFILECONNECTIONSTRING": "[concat('DefaultEndpointsProtocol=https;AccountName=', variables('storageAccountName'), ';AccountKey=', listKeys(variables('storageAccountId'),'2015-05-01-preview').key1)]",
+                        "WEBSITE_CONTENTSHARE": "[toLower(variables('functionAppName'))]",
+                        "FUNCTIONS_EXTENSION_VERSION": "~3",
+                        "APPINSIGHTS_INSTRUMENTATIONKEY": "[reference(resourceId('microsoft.insights/components/', variables('appInsightsName')), '2015-05-01').InstrumentationKey]",
+                        "WEBSITE_RUN_FROM_PACKAGE": "1",
+                        "FUNCTIONS_WORKER_RUNTIME": "dotnet",
+                        "SubscriptionId": "[subscription().SubscriptionId]"
+                    }
+                }
+            ]
+        }
+    ]
+}
