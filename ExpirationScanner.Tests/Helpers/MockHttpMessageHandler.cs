@@ -3,7 +3,7 @@ using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace ExpirationScanner.Logic.Helpers
+namespace ExpirationScanner.Tests.Helpers
 {
     public class MockHttpMessageHandler : HttpMessageHandler
     {

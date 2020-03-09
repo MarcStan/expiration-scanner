@@ -1,4 +1,5 @@
 using ExpirationScanner.Azure;
+using ExpirationScanner.Logic;
 using ExpirationScanner.Logic.Azure;
 using ExpirationScanner.Logic.Notification;
 using ExpirationScanner.Services;
@@ -33,6 +34,7 @@ namespace ExpirationScanner
             builder.Services.AddSingleton<INotificationService>(p
                 => new AggregatedNotificationService(GetConfiguredNotificationServices(p), config, p.GetRequiredService<ILogger<AggregatedNotificationService>>()));
             builder.Services.AddSingleton<AzureManagementTokenProvider>();
+            builder.Services.AddSingleton<KeyVaultExpiryChecker>();
         }
 
         private IEnumerable<INotificationService> GetConfiguredNotificationServices(IServiceProvider serviceProvider)

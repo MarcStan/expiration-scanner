@@ -1,6 +1,5 @@
 using Microsoft.Azure.KeyVault.Models;
 using Microsoft.Azure.Management.KeyVault.Fluent;
-using System.Collections.Generic;
 
 namespace ExpirationScanner.Logic
 {
@@ -11,11 +10,11 @@ namespace ExpirationScanner.Logic
             Vault = vault;
         }
 
-        public IEnumerable<SecretItem> ExpiringSecrets { get; set; }
+        public SecretItem[] ExpiringSecrets { get; set; }
 
-        public IEnumerable<SecretItem> ExpiringLegacyCertificates { get; set; }
+        public SecretItem[] ExpiringLegacyCertificates { get; set; }
 
-        public IEnumerable<CertificateItem> ExpiringCertificates { get; set; }
+        public CertificateItem[] ExpiringCertificates { get; set; }
 
         public IVault Vault { get; }
     }

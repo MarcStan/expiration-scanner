@@ -1,5 +1,5 @@
 ﻿using ExpirationScanner.Logic.Azure;
-using ExpirationScanner.Logic.Helpers;
+using ExpirationScanner.Tests.Helpers;
 using FluentAssertions;
 using Microsoft.Extensions.Configuration;
 using NUnit.Framework;
