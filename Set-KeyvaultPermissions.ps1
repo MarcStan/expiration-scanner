@@ -1,5 +1,7 @@
 <#
-Allow an Service Principal acess to Secret and Certificate metadata to all Keyvaults in a subscription
+.SYNOPSIS
+    Allow an Service Principal acess to Secret and Certificate metadata to all Keyvaults in a subscription
+    Requires az cli to be installed (https://aka.ms/azcli)
 #>
 [CmdletBinding()]
 param(
@@ -8,7 +10,6 @@ param(
     [string]
     $Subscription,
     
-    # Location
     [Parameter()]
     [ValidateNotNullOrEmpty()]
     [string]
@@ -24,7 +25,7 @@ $keyvaults = $kvlist.Split([Environment]::NewLine)
 
 
 foreach ($kv in $keyvaults) {
-    Write-Output "Assigning List Permissions to Service Principal $($ServicePrincipalObjectId) on KeyVault $($kv)"
+    Write-Output "Assigning List permission to service principal $($ServicePrincipalObjectId) on KeyVault $($kv)"
     if (!$WhatIf.IsPresent) {
         az keyvault set-policy --subscription $Subscription --certificate-permissions "list" --secret-permissions "list" --object-id $ServicePrincipalObjectId -n $kv
     }

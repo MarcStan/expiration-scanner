@@ -56,6 +56,3 @@ vpatch.exe
 # ignore temp files
 **/App_Data/*
 **/logs/*
-
-# Azure Functions localsettings file
-local.settings.json

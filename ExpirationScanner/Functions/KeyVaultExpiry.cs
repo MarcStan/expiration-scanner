@@ -25,34 +25,41 @@ namespace ExpirationScanner.Functions
     {
         private readonly IConfiguration _config;
         private readonly IAzureHelper _azureHelper;
+        private readonly IConfiguration _configuration;
         private readonly INotificationService _notificationService;
         private readonly AzureManagementTokenProvider _azureManagementTokenProvider;
 
         public KeyVaultExpiry(
             IConfiguration config,
             IAzureHelper azureHelper,
+            IConfiguration configuration,
             INotificationService slackService,
             AzureManagementTokenProvider azureManagementTokenProvider)
         {
             _config = config;
             _azureHelper = azureHelper;
+            _configuration = configuration;
             _notificationService = slackService;
             _azureManagementTokenProvider = azureManagementTokenProvider;
         }
 
         [FunctionName("keyvault-expiry")]
         public async Task Run(
-            [TimerTrigger(Schedules.KeyVaultExpirySchedule
+            [TimerTrigger(Constants.KeyVaultExpirySchedule
 #if DEBUG
             , RunOnStartup = true
 #endif
             )] TimerInfo myTimer,
             CancellationToken cancellationToken)
         {
-            var ignoreFilter = (_config["IGNORED_KEYVAULTS"] ?? string.Empty).Split(',').Select(v => v.Trim());
+            var certificateExpiryWarningInDays = int.Parse(_config["KeyVault_Certificate_WarningThresholdInDays"] ?? Constants.DefaultExpiry.ToString());
+            var secretExpiryWarningInDays = int.Parse(_config["KeyVault_Secret_WarningThresholdInDays"] ?? Constants.DefaultExpiry.ToString());
 
-            var certificateExpiryWarningInDays = int.Parse(_config["CERTIFICATE_WARNING_THRESHOLD"] ?? "30");
-            var secretExpiryWarningInDays = int.Parse(_config["SECRET_WARNING_THRESHOLD"] ?? "30");
+            var whitelist = _configuration["KeyVault_Whitelist"];
+            var keyVaultFilter = (string.IsNullOrEmpty(whitelist) ? "*" : whitelist)
+                .Split(',')
+                .Select(v => v.Trim())
+                .ToArray();
 
             var factory = new MSITokenProviderFactory(new MSILoginInformation(MSIResourceType.AppService));
             KeyVaultClient kvClient = new KeyVaultClient(new KeyVaultClient.AuthenticationCallback(async (authority, resource, scope) =>
@@ -86,10 +93,8 @@ namespace ExpirationScanner.Functions
 
             await foreach (var vault in azure.Vaults.ToAsyncEnumerable())
             {
-                if (ignoreFilter.Contains(vault.Name))
-                {
+                if (Matches(vault.Name, keyVaultFilter))
                     continue;
-                }
 
                 var keyVaultWarning = new KeyVaultWarning(vault);
 
@@ -170,6 +175,11 @@ namespace ExpirationScanner.Functions
 
             if (errors.Any())
                 await _notificationService.SendNotificationAsync(string.Join("\n", errors), cancellationToken);
+        }
+
+        private bool Matches(string name, string[] keyVaultFilter)
+        {
+            throw new NotImplementedException();
         }
     }
 }
