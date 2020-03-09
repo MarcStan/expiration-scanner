@@ -64,9 +64,11 @@ namespace ExpirationScanner.Endpoints.ServicePrincipalCheck
 
                 if (expiringCertificates.Any() || expiringSecrets.Any())
                 {
-                    var warning = new ServicePrincipalWarning(app);
-                    warning.ExpiringCertificates = expiringCertificates;
-                    warning.ExpiringSecrets = expiringSecrets;
+                    var warning = new ServicePrincipalWarning
+                    {
+                        ExpiringCertificates = expiringCertificates,
+                        ExpiringSecrets = expiringSecrets
+                    };
 
                     var sbSlack = new StringBuilder();
                     sbSlack.AppendLine($"Application {app.DisplayName} in Tenant {tenantId} has credentials about to expire:");

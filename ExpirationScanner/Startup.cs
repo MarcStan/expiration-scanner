@@ -1,4 +1,5 @@
 using ExpirationScanner.Azure;
+using ExpirationScanner.Logic.Notification;
 using Microsoft.Azure.Functions.Extensions.DependencyInjection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -16,6 +17,14 @@ namespace ExpirationScanner
 
             builder.Services.AddSingleton(config);
             builder.Services.AddHttpClient();
+            builder.Services.Scan(scan =>
+            {
+                scan.FromAssemblyOf<INotificationService>()
+                .AddClasses(classes => classes.AssignableTo<INotificationService>())
+                .AsImplementedInterfaces()
+                .WithSingletonLifetime();
+            });
+            builder.Services.AddSingleton<INotificationService, AggregatedNotificationService>();
             builder.Services.AddSingleton<AzureManagementTokenProvider>();
         }
     }
