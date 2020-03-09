@@ -7,14 +7,14 @@ using System.Threading.Tasks;
 
 namespace ExpirationScanner.Logic.Notification
 {
-    public class SendgridNotificationService : INotificationService
+    public class SendGridNotificationService : INotificationService
     {
         private const string DefaultSubject = "Expiry notification";
         private const string _apiKeyKey = "Notification_Sendgrid_Key", _fromKey = "Notification_Sendgrid_From", _toKey = "Notification_Sendgrid_To";
 
         private readonly IConfiguration _configuration;
 
-        public SendgridNotificationService(IConfiguration configuration)
+        public SendGridNotificationService(IConfiguration configuration)
         {
             _configuration = configuration;
         }
