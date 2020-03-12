@@ -2,9 +2,11 @@ using ExpirationScanner.Azure;
 using ExpirationScanner.Logic;
 using ExpirationScanner.Logic.Azure;
 using ExpirationScanner.Logic.Notification;
-using ExpirationScanner.Services;
 using Microsoft.Azure.Functions.Extensions.DependencyInjection;
+using Microsoft.Azure.KeyVault;
+using Microsoft.Azure.Services.AppAuthentication;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Configuration.AzureKeyVault;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System;
@@ -17,9 +19,23 @@ namespace ExpirationScanner
     {
         public override void Configure(IFunctionsHostBuilder builder)
         {
-            var config = new ConfigurationBuilder()
+            var keyVaultName = new ConfigurationBuilder()
+                .AddJsonFile("local.settings.json", optional: true)
                 .AddEnvironmentVariables()
-                .Build();
+                .Build()["KeyVaultName"];
+
+            var configBuilder = new ConfigurationBuilder();
+            if (!string.IsNullOrEmpty(keyVaultName))
+            {
+                var tokenProvider = new AzureServiceTokenProvider();
+                var kvClient = new KeyVaultClient((authority, resource, scope)
+                    => tokenProvider.KeyVaultTokenCallback(authority, resource, scope));
+
+                configBuilder
+                    .AddAzureKeyVault($"https://{keyVaultName}.vault.azure.net", kvClient, new DefaultKeyVaultSecretManager())
+                    .AddEnvironmentVariables();
+            }
+            var config = configBuilder.Build();
 
             builder.Services.AddSingleton(config);
             builder.Services.AddHttpClient();
