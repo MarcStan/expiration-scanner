@@ -1,6 +1,5 @@
 using Microsoft.Azure.Services.AppAuthentication;
 using Microsoft.Rest;
-using System;
 using System.Net.Http.Headers;
 using System.Threading;
 using System.Threading.Tasks;
@@ -9,12 +8,16 @@ namespace ExpirationScanner.Azure
 {
     public class AzureManagementTokenProvider : ITokenProvider
     {
-        private static Lazy<AzureServiceTokenProvider> _lazyAzureServiceTokenProvider =
-            new Lazy<AzureServiceTokenProvider>(() => new AzureServiceTokenProvider());
+        private readonly string _tenantId;
+
+        public AzureManagementTokenProvider(string tenantId)
+        {
+            _tenantId = tenantId;
+        }
 
         public async Task<AuthenticationHeaderValue> GetAuthenticationHeaderAsync(CancellationToken cancellationToken)
         {
-            var token = await _lazyAzureServiceTokenProvider.Value.GetAccessTokenAsync("https://management.core.windows.net");
+            var token = await new AzureServiceTokenProvider().GetAccessTokenAsync("https://management.core.windows.net", _tenantId);
             return new AuthenticationHeaderValue("Bearer", token);
         }
     }

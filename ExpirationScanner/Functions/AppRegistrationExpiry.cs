@@ -31,9 +31,9 @@ namespace ExpirationScanner.Functions
             ILogger log,
             CancellationToken cancellationToken)
         {
-            var secretExpiryWaringInDays = int.Parse(_configuration["AppRegistration_Secret_WarningThresholdInDays"] ?? Constants.ExpiryWarningThresholdInDays.ToString());
-            var certificateExpiryWaringInDays = int.Parse(_configuration["AppRegistration_Certificate_WarningThresholdInDays"] ?? Constants.ExpiryWarningThresholdInDays.ToString());
-            var whitelist = _configuration["AppRegistration_Whitelist"];
+            var secretExpiryWaringInDays = int.Parse(_configuration["AppRegistration:Secret:WarningThresholdInDays"] ?? Constants.ExpiryWarningThresholdInDays.ToString());
+            var certificateExpiryWaringInDays = int.Parse(_configuration["AppRegistration:Certificate:WarningThresholdInDays"] ?? Constants.ExpiryWarningThresholdInDays.ToString());
+            var whitelist = _configuration["AppRegistration:Whitelist"];
             var appFilter = (string.IsNullOrEmpty(whitelist) ? "*" : whitelist)
                 .Split(',')
                 .Select(v => v.Trim())

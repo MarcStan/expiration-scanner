@@ -40,7 +40,7 @@ namespace ExpirationScanner.Logic
 
             await foreach (var app in graphServiceClient.Applications.Request().ToAsyncEnumerable())
             {
-                if (Matches(app.DisplayName, appFilter))
+                if (!InWhitelist(app.DisplayName, appFilter))
                     continue;
 
                 var now = DateTimeOffset.UtcNow;
@@ -100,7 +100,7 @@ namespace ExpirationScanner.Logic
             }
         }
 
-        private bool Matches(string name, string[] appFilter)
+        private bool InWhitelist(string name, string[] appFilter)
             => WhitelistHelper.Matches(name, appFilter);
     }
 }

@@ -9,7 +9,7 @@ namespace ExpirationScanner.Services
 {
     public class SlackNotificationService : INotificationService
     {
-        private const string _webHookKey = "Notification_Slack_WebHook";
+        private const string _webHookKey = "Notification:Slack:WebHook";
         private readonly HttpClient _httpClient;
         private readonly IConfiguration _configuration;
 

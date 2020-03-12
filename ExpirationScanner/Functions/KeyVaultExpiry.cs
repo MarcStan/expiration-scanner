@@ -29,10 +29,10 @@ namespace ExpirationScanner.Functions
             )] TimerInfo myTimer,
             CancellationToken cancellationToken)
         {
-            var certificateExpiryWarningInDays = int.Parse(_configuration["KeyVault_Certificate_WarningThresholdInDays"] ?? Constants.ExpiryWarningThresholdInDays.ToString());
-            var secretExpiryWarningInDays = int.Parse(_configuration["KeyVault_Secret_WarningThresholdInDays"] ?? Constants.ExpiryWarningThresholdInDays.ToString());
+            var certificateExpiryWarningInDays = int.Parse(_configuration["KeyVault:Certificate:WarningThresholdInDays"] ?? Constants.ExpiryWarningThresholdInDays.ToString());
+            var secretExpiryWarningInDays = int.Parse(_configuration["KeyVault:Secret:WarningThresholdInDays"] ?? Constants.ExpiryWarningThresholdInDays.ToString());
 
-            var whitelist = _configuration["KeyVault_Whitelist"];
+            var whitelist = _configuration["KeyVault:Whitelist"];
             var keyVaultFilter = (string.IsNullOrEmpty(whitelist) ? "*" : whitelist)
                 .Split(',')
                 .Select(v => v.Trim())

@@ -34,7 +34,7 @@ namespace ExpirationScanner.Logic.Azure
         }
 
         public string GetSubscriptionId()
-            => _configuration.GetRequiredValue<string>("subscriptionId");
+            => _configuration.GetRequiredValue<string>("SubscriptionId");
 
         /// <summary>
         /// Returns the tenant id by making an unauthorized call to azure.
@@ -63,7 +63,7 @@ namespace ExpirationScanner.Logic.Azure
             return tenantId;
         }
 
-        public Task<ITokenProvider> GetAuthenticatedARMClientAsync(CancellationToken cancellationToken)
-            => Task.FromResult((ITokenProvider)new AzureManagementTokenProvider());
+        public async Task<ITokenProvider> GetAuthenticatedARMClientAsync(CancellationToken cancellationToken)
+            => new AzureManagementTokenProvider(await GetTenantIdAsync(cancellationToken));
     }
 }

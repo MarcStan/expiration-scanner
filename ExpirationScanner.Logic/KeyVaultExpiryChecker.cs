@@ -1,5 +1,4 @@
-﻿using ExpirationScanner.Azure;
-using ExpirationScanner.Logic.Azure;
+﻿using ExpirationScanner.Logic.Azure;
 using ExpirationScanner.Logic.Extensions;
 using ExpirationScanner.Logic.Notification;
 using Microsoft.Azure.KeyVault;
@@ -7,6 +6,7 @@ using Microsoft.Azure.KeyVault.Models;
 using Microsoft.Azure.Management.ResourceManager.Fluent;
 using Microsoft.Azure.Management.ResourceManager.Fluent.Authentication;
 using Microsoft.Azure.Management.ResourceManager.Fluent.Core;
+using Microsoft.Azure.Services.AppAuthentication;
 using Microsoft.Rest;
 using Microsoft.Rest.Azure;
 using System;
@@ -22,27 +22,21 @@ namespace ExpirationScanner.Logic
     {
         private readonly IAzureHelper _azureHelper;
         private readonly INotificationStrategy _notificationService;
-        private readonly AzureManagementTokenProvider _azureManagementTokenProvider;
 
         public KeyVaultExpiryChecker(
             IAzureHelper azureHelper,
-            INotificationStrategy notificationService,
-            AzureManagementTokenProvider azureManagementTokenProvider)
+            INotificationStrategy notificationService)
         {
             _azureHelper = azureHelper;
             _notificationService = notificationService;
-            _azureManagementTokenProvider = azureManagementTokenProvider;
         }
 
         public async Task CheckAsync(string[] keyVaultFilter, int certificateExpiryWarningInDays, int secretExpiryWarningInDays, CancellationToken cancellationToken)
         {
-            var factory = new MSITokenProviderFactory(new MSILoginInformation(MSIResourceType.AppService));
-            var kvClient = new KeyVaultClient(new KeyVaultClient.AuthenticationCallback(async (authority, resource, scope) =>
-            {
-                return (await factory.Create(resource).GetAuthenticationHeaderAsync(cancellationToken)).Parameter;
-            }));
+            var kvClient = new KeyVaultClient(new KeyVaultClient.AuthenticationCallback(new AzureServiceTokenProvider().KeyVaultTokenCallback));
 
-            var tokenCredentials = new TokenCredentials(_azureManagementTokenProvider);
+            var tokenProvider = await _azureHelper.GetAuthenticatedARMClientAsync(cancellationToken);
+            var tokenCredentials = new TokenCredentials(tokenProvider);
 
             var tenantId = await _azureHelper.GetTenantIdAsync(cancellationToken);
             var subscriptionId = _azureHelper.GetSubscriptionId();
@@ -65,10 +59,11 @@ namespace ExpirationScanner.Logic
                 .WithSubscription(subscriptionId);
 
             var errors = new List<string>();
+            var builder = new StringBuilder();
 
             await foreach (var vault in azure.Vaults.ToAsyncEnumerable())
             {
-                if (Matches(vault.Name, keyVaultFilter))
+                if (!InWhitelist(vault.Name, keyVaultFilter))
                     continue;
 
                 var keyVaultWarning = new KeyVaultWarning(vault);
@@ -122,39 +117,39 @@ namespace ExpirationScanner.Logic
 
                 if (keyVaultWarning.ExpiringCertificates.Any() || keyVaultWarning.ExpiringLegacyCertificates.Any() || keyVaultWarning.ExpiringSecrets.Any())
                 {
-                    var sbSlack = new StringBuilder();
-                    sbSlack.AppendLine($"🔑 KeyVault {vault.Name} has entries about to expire");
+                    builder.AppendLine($"🔑 KeyVault {vault.Name} has entries about to expire");
 
                     if (keyVaultWarning.ExpiringCertificates.Any() || keyVaultWarning.ExpiringLegacyCertificates.Any())
                     {
-                        sbSlack.AppendLine("Certificates:");
+                        builder.AppendLine("Certificates:");
                         foreach (var cert in keyVaultWarning.ExpiringCertificates)
                         {
-                            sbSlack.AppendLine($"\t•{(cert.Attributes.Expires < DateTime.UtcNow ? " ⚠️ EXPIRED ⚠️" : "")} {cert.Identifier.Name} - Created: {cert.Attributes.Created}\tExpires: {cert.Attributes.Expires}");
+                            builder.AppendLine($"\t•{(cert.Attributes.Expires < DateTime.UtcNow ? " ⚠️ EXPIRED ⚠️" : "")} {cert.Identifier.Name} - Created: {cert.Attributes.Created}\tExpires: {cert.Attributes.Expires}");
                         }
                         foreach (var cert in keyVaultWarning.ExpiringLegacyCertificates)
                         {
-                            sbSlack.AppendLine($"\t•{(cert.Attributes.Expires < DateTime.UtcNow ? " ⚠️ EXPIRED ⚠️" : "")} {cert.Identifier.Name} - Created: {cert.Attributes.Created}\tExpires: {cert.Attributes.Expires}");
+                            builder.AppendLine($"\t•{(cert.Attributes.Expires < DateTime.UtcNow ? " ⚠️ EXPIRED ⚠️" : "")} {cert.Identifier.Name} - Created: {cert.Attributes.Created}\tExpires: {cert.Attributes.Expires}");
                         }
                     }
                     if (keyVaultWarning.ExpiringSecrets.Any())
                     {
-                        sbSlack.AppendLine("Secrets:");
+                        builder.AppendLine("Secrets:");
                         foreach (var secret in keyVaultWarning.ExpiringSecrets)
                         {
-                            sbSlack.AppendLine($"\t•{(secret.Attributes.Expires < DateTime.UtcNow ? " ⚠️ EXPIRED ⚠️" : "")} {secret.Identifier.Name} {(!string.IsNullOrWhiteSpace(secret.ContentType) ? $"({secret.ContentType})" : "")} - Created: {secret.Attributes.Created}, Expires: {secret.Attributes.Expires}");
+                            builder.AppendLine($"\t•{(secret.Attributes.Expires < DateTime.UtcNow ? " ⚠️ EXPIRED ⚠️" : "")} {secret.Identifier.Name} {(!string.IsNullOrWhiteSpace(secret.ContentType) ? $"({secret.ContentType})" : "")} - Created: {secret.Attributes.Created}, Expires: {secret.Attributes.Expires}");
                         }
                     }
-
-                    await _notificationService.BroadcastNotificationAsync(sbSlack.ToString(), cancellationToken);
                 }
             }
+
+            if (builder.Length > 0)
+                await _notificationService.BroadcastNotificationAsync(builder.ToString(), cancellationToken);
 
             if (errors.Any())
                 await _notificationService.BroadcastNotificationAsync(string.Join("\n", errors), cancellationToken);
         }
 
-        private bool Matches(string name, string[] keyVaultFilter)
+        private bool InWhitelist(string name, string[] keyVaultFilter)
             => WhitelistHelper.Matches(name, keyVaultFilter);
     }
 }
