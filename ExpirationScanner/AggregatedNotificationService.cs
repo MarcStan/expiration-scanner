@@ -9,7 +9,10 @@ using System.Threading.Tasks;
 
 namespace ExpirationScanner
 {
-    public class AggregatedNotificationService : INotificationService
+    /// <summary>
+    /// Logs to output and triggers all configured notification service.
+    /// </summary>
+    public class AggregatedNotificationService : INotificationStrategy
     {
         private readonly INotificationService[] _notificationServices;
         private readonly IConfiguration _configuration;
@@ -24,13 +27,14 @@ namespace ExpirationScanner
 
             if (_notificationServices.Length == 0)
                 throw new InvalidOperationException($"At least one {typeof(INotificationService)} must be configured for the function to run as intended but none where.");
+            if (!_notificationServices.Any(x => x.IsActive))
+                throw new NotSupportedException("All notification targets are disabled!");
+
             _configuration = configuration;
             _logger = logger;
         }
 
-        public bool IsActive => _notificationServices.Any(x => x.IsActive);
-
-        public async Task SendNotificationAsync(string text, CancellationToken cancellationToken)
+        public async Task BroadcastNotificationAsync(string text, CancellationToken cancellationToken)
         {
             if (!"true".Equals(_configuration["Notificaton_Logger_Disable"], StringComparison.OrdinalIgnoreCase))
                 _logger.LogInformation(text);

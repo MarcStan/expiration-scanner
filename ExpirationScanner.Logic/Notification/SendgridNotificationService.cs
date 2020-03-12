@@ -10,7 +10,7 @@ namespace ExpirationScanner.Logic.Notification
     public class SendGridNotificationService : INotificationService
     {
         private const string DefaultSubject = "Expiry notification";
-        private const string _apiKeyKey = "Notification_Sendgrid_Key", _fromKey = "Notification_Sendgrid_From", _toKey = "Notification_Sendgrid_To";
+        private const string _apiKeyKey = "Notification_SendGrid_Key", _fromKey = "Notification_SendGrid_From", _toKey = "Notification_SendGrid_To";
 
         private readonly IConfiguration _configuration;
 
@@ -34,7 +34,7 @@ namespace ExpirationScanner.Logic.Notification
             var to = _configuration.GetRequiredValue<string>(_toKey);
 
             // optional
-            var subject = _configuration.GetRequiredValue<string>("Notification_Sendgrid_Subject");
+            var subject = _configuration.GetRequiredValue<string>("Notification_SendGrid_Subject");
 
             var client = new SendGridClient(key);
             var mail = MailHelper.CreateSingleEmail(new EmailAddress(from), new EmailAddress(to), subject ?? DefaultSubject, text, null);

@@ -27,6 +27,8 @@ See also [Shared configuration (environment variables)](#Shared-configuration-(e
 
 The function MSI must be granted `Application.Read.All` permission on the graph API to read all existing applications. Alternatively you can setup a regular application and grant it permission.
 
+If your company does not allow read all permission for application an alternative permission is `Application.ReadWrite.OwnedBy`. This permission requires you to add the service principal (function MSI) as an owner on every app registration/service principal it should read (unfortunately there is currently no `Application.Read.OwnedBy` permission, but rest assured that the function only performs readonly tasks).
+
 TODO: MSI-> graph api setup script
 
 ### App configuration (environment variables):
@@ -47,8 +49,8 @@ These configuration values are used by both functions:
 
 One of these values **must** be set (multiple **can** be set). Each configured target will receive the same message:
 
-- `Notification_Sendgrid_Key`: If set (must be a key that has `mail send` permission) will cause the alerts to be sent as emails. Note that each function will agreggate all outputs into one message but aggregation does not happen across function (i.e. keyvault & app registration secret expiration cause two separate emails)
+- `Notification_SendGrid_Key`: If set (must be a key that has `mail send` permission) will cause the alerts to be sent as emails via SendGrid. Note that each function will agreggate all outputs into one message but aggregation does not happen across function (i.e. keyvault & app registration secret expiration cause two separate emails). Also requires `Notification_SendGrid_From` and `Notification_SendGrid_To` to be set to email addresses. Optionally `Notification_SendGrid_Subject` can also be set (defaults to `Expiry notification`).
 
-- `Notification_Slack_Webhook`: If set will cause alerts to be sent to a slack channel. You must setup a [slack app](https://api.slack.com/messaging/webhooks).
+- `Notification_Slack_WebHook`: If set will cause alerts to be sent to a slack channel. You must setup a [slack app](https://api.slack.com/messaging/webhooks).
 
 Additionally the message is also logged via the logger output by default (console/app insights). To disable set `Notificaton_Logger_Disable` to `true`.

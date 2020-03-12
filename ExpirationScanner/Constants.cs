@@ -2,7 +2,10 @@
 {
     public static class Constants
     {
-        public const int DefaultExpiry = 60;
+        /// <summary>
+        /// Days before actual expiration from which on notifications will be issued.
+        /// </summary>
+        public const int ExpiryWarningThresholdInDays = 60;
 
         public const string KeyVaultExpirySchedule = "0 0 8 * * *";
 

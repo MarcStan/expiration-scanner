@@ -21,16 +21,16 @@ namespace ExpirationScanner.Logic
     public class KeyVaultExpiryChecker
     {
         private readonly IAzureHelper _azureHelper;
-        private readonly INotificationService _notificationService;
+        private readonly INotificationStrategy _notificationService;
         private readonly AzureManagementTokenProvider _azureManagementTokenProvider;
 
         public KeyVaultExpiryChecker(
             IAzureHelper azureHelper,
-            INotificationService slackService,
+            INotificationStrategy notificationService,
             AzureManagementTokenProvider azureManagementTokenProvider)
         {
             _azureHelper = azureHelper;
-            _notificationService = slackService;
+            _notificationService = notificationService;
             _azureManagementTokenProvider = azureManagementTokenProvider;
         }
 
@@ -146,12 +146,12 @@ namespace ExpirationScanner.Logic
                         }
                     }
 
-                    await _notificationService.SendNotificationAsync(sbSlack.ToString(), cancellationToken);
+                    await _notificationService.BroadcastNotificationAsync(sbSlack.ToString(), cancellationToken);
                 }
             }
 
             if (errors.Any())
-                await _notificationService.SendNotificationAsync(string.Join("\n", errors), cancellationToken);
+                await _notificationService.BroadcastNotificationAsync(string.Join("\n", errors), cancellationToken);
         }
 
         private bool Matches(string name, string[] keyVaultFilter)

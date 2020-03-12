@@ -15,11 +15,11 @@ namespace ExpirationScanner.Logic
     public class AppRegistrationExpiryChecker
     {
         private readonly IAzureHelper _azureHelper;
-        private readonly INotificationService _notificationService;
+        private readonly INotificationStrategy _notificationService;
 
         public AppRegistrationExpiryChecker(
             IAzureHelper azureHelper,
-            INotificationService notificationService)
+            INotificationStrategy notificationService)
         {
             _azureHelper = azureHelper;
             _notificationService = notificationService;
@@ -95,7 +95,7 @@ namespace ExpirationScanner.Logic
                             .AppendLine(secret.EndDateTime?.ToString("g"));
                     }
 
-                    await _notificationService.SendNotificationAsync(stringBuilder.ToString(), cancellationToken);
+                    await _notificationService.BroadcastNotificationAsync(stringBuilder.ToString(), cancellationToken);
                 }
             }
         }

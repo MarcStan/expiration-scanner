@@ -43,12 +43,12 @@ namespace ExpirationScanner
             {
                 scan.FromAssemblyOf<INotificationService>()
                     .AddClasses(classes => classes.AssignableTo<INotificationService>())
-                    .AsSelf()
+                    .AsSelfWithInterfaces()
                     .WithSingletonLifetime();
             });
             builder.Services.AddSingleton<IAzureHelper, AzureHelper>();
-            builder.Services.AddSingleton<INotificationService>(p
-                => new AggregatedNotificationService(GetConfiguredNotificationServices(p), config, p.GetRequiredService<ILogger<AggregatedNotificationService>>()));
+            builder.Services.AddSingleton<INotificationStrategy>(p
+                => new AggregatedNotificationService(GetConfiguredNotificationServices(p), p.GetRequiredService<IConfiguration>(), p.GetRequiredService<ILogger<AggregatedNotificationService>>()));
             builder.Services.AddSingleton<AzureManagementTokenProvider>();
             builder.Services.AddSingleton<KeyVaultExpiryChecker>();
             builder.Services.AddSingleton<AppRegistrationExpiryChecker>();
@@ -56,18 +56,10 @@ namespace ExpirationScanner
 
         private IEnumerable<INotificationService> GetConfiguredNotificationServices(IServiceProvider serviceProvider)
         {
-            // TODO: GetServices would contain them but would iterate 180+ services
-            var serviceTypes = new[]
+            foreach (var service in serviceProvider.GetServices<INotificationService>())
             {
-                typeof(SendGridNotificationService),
-                typeof(SlackNotificationService)
-            };
-
-            foreach (var serviceType in serviceTypes)
-            {
-                var instance = (INotificationService)serviceProvider.GetRequiredService(serviceType);
-                if (instance.IsActive)
-                    yield return instance;
+                if (service.IsActive)
+                    yield return service;
             }
         }
     }
