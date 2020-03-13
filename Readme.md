@@ -28,11 +28,25 @@ See also [Shared configuration (environment variables)](#Shared-configuration-(e
 
 ## App registration secret/certificate expiration
 
-The function MSI must be granted `Application.Read.All` permission on the graph API to read all existing applications. Alternatively you can setup a regular application and grant it permission.
+The function MSI must be granted `Application.Read.All` permission on the Microsoft Graph API to read all existing applications. Alternatively you can setup a regular application and grant it the permission.
 
 If your company does not allow read all permission for application an alternative permission is `Application.ReadWrite.OwnedBy`. This permission requires you to add the service principal (function MSI) as an owner on every app registration/service principal it should read (unfortunately there is currently no `Application.Read.OwnedBy` permission, but rest assured that the function only performs readonly tasks).
 
-TODO: MSI-> graph api setup script
+To setup the Graph API permission login with `Connect-AzureAD` (install powershell module AzureAD if missing) and then run:
+
+> New-AzureADServiceAppRoleAssignment -Id 9a5d68dd-52b0-4cc2-bd40-abcf44ac3a30 -ObjectId \<MSI object id> -PrincipalId \<MSI object Id> -ResourceId \<graph api object id>
+
+* `9a5d68dd-52b0-4cc2-bd40-abcf44ac3a30` is the id of the `Application.Read.All` graph API permission (same across all tenants)
+
+To get the Graph API objectId run:
+
+> Get-AzureADServicePrincipal -Filter "AppId eq '00000003-0000-0000-c000-000000000000'"
+
+Run this command to list all Microsoft Graph API permissions:
+
+> az ad sp show --id 00000003-0000-0000-c000-000000000000
+
+(Note that all permissions appear twice: once as appRoles and once as oauth scopes. Since we want the app to run without user context you must pick the appRole id).
 
 ### App configuration (environment variables):
 

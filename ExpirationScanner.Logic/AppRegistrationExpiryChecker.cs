@@ -1,9 +1,8 @@
-﻿using ExpirationScanner.Logic.Azure;
+﻿using ExpirationScanner.Azure;
+using ExpirationScanner.Logic.Azure;
 using ExpirationScanner.Logic.Extensions;
 using ExpirationScanner.Logic.Notification;
 using Microsoft.Graph;
-using Microsoft.Graph.Auth;
-using Microsoft.Identity.Client;
 using System;
 using System.Linq;
 using System.Text;
@@ -28,15 +27,9 @@ namespace ExpirationScanner.Logic
         public async Task CheckAsync(string[] appFilter, int certificateExpiryWaringInDays, int secretExpiryWaringInDays, CancellationToken cancellationToken)
         {
             var tenantId = await _azureHelper.GetTenantIdAsync(cancellationToken);
-            IConfidentialClientApplication confidentialClientApplication = ConfidentialClientApplicationBuilder
-                .Create("TODO")
-                .WithTenantId(tenantId)
-                .WithClientSecret("TODO")
-                .Build();
 
-            var authProvider = new ClientCredentialProvider(confidentialClientApplication);
-
-            var graphServiceClient = new GraphServiceClient(authProvider);
+            var graphServiceClient = new GraphServiceClient(new GraphApiTokenProvider(tenantId));
+            var stringBuilder = new StringBuilder();
 
             await foreach (var app in graphServiceClient.Applications.Request().ToAsyncEnumerable())
             {
@@ -61,7 +54,6 @@ namespace ExpirationScanner.Logic
                         ExpiringSecrets = expiringSecrets
                     };
 
-                    var stringBuilder = new StringBuilder();
                     stringBuilder
                         .Append("Application ")
                         .Append(app.DisplayName)
@@ -94,10 +86,10 @@ namespace ExpirationScanner.Logic
                             .Append(secret.StartDateTime?.ToString("g")).Append("\t Expires: ")
                             .AppendLine(secret.EndDateTime?.ToString("g"));
                     }
-
-                    await _notificationService.BroadcastNotificationAsync(stringBuilder.ToString(), cancellationToken);
                 }
             }
+            if (stringBuilder.Length > 0)
+                await _notificationService.BroadcastNotificationAsync(stringBuilder.ToString(), cancellationToken);
         }
 
         private bool InWhitelist(string name, string[] appFilter)
