@@ -7,6 +7,7 @@ using Microsoft.Azure.Management.ResourceManager.Fluent;
 using Microsoft.Azure.Management.ResourceManager.Fluent.Authentication;
 using Microsoft.Azure.Management.ResourceManager.Fluent.Core;
 using Microsoft.Azure.Services.AppAuthentication;
+using Microsoft.Extensions.Logging;
 using Microsoft.Rest;
 using Microsoft.Rest.Azure;
 using System;
@@ -22,13 +23,16 @@ namespace ExpirationScanner.Logic
     {
         private readonly IAzureHelper _azureHelper;
         private readonly INotificationStrategy _notificationService;
+        private readonly ILogger<KeyVaultExpiryChecker> _logger;
 
         public KeyVaultExpiryChecker(
             IAzureHelper azureHelper,
-            INotificationStrategy notificationService)
+            INotificationStrategy notificationService,
+            ILogger<KeyVaultExpiryChecker> logger)
         {
             _azureHelper = azureHelper;
             _notificationService = notificationService;
+            _logger = logger;
         }
 
         public async Task CheckAsync(string[] keyVaultFilter, int certificateExpiryWarningInDays, int secretExpiryWarningInDays, CancellationToken cancellationToken)
@@ -68,6 +72,8 @@ namespace ExpirationScanner.Logic
 
                 var keyVaultWarning = new KeyVaultWarning(vault);
 
+                _logger.LogInformation($"Processing keyvault {vault.Name}");
+
                 var certificates = new List<CertificateItem>();
                 IPage<CertificateItem> certificatesPage = null;
                 try
@@ -83,6 +89,7 @@ namespace ExpirationScanner.Logic
                 while (certificatesPage?.NextPageLink != null)
                 {
                     certificatesPage = await kvClient.GetCertificatesNextAsync(certificatesPage?.NextPageLink);
+                    certificates.AddRange(certificatesPage.ToList());
                 }
 
                 keyVaultWarning.ExpiringCertificates = certificates
@@ -104,6 +111,7 @@ namespace ExpirationScanner.Logic
                 while (secretsPage?.NextPageLink != null)
                 {
                     secretsPage = await kvClient.GetSecretsNextAsync(secretsPage?.NextPageLink);
+                    secrets.AddRange(secretsPage.ToList());
                 }
 
                 var unmanagedSecrets = secrets.Where(s => s.Managed != true && s.ContentType != "application/x-pkcs12");
@@ -117,18 +125,37 @@ namespace ExpirationScanner.Logic
 
                 if (keyVaultWarning.ExpiringCertificates.Any() || keyVaultWarning.ExpiringLegacyCertificates.Any() || keyVaultWarning.ExpiringSecrets.Any())
                 {
-                    builder.AppendLine($"🔑 KeyVault {vault.Name} has entries about to expire");
+                    builder
+                        .Append("🔑 KeyVault ")
+                        .Append(vault.Name)
+                        .AppendLine(" has entries about to expire");
 
                     if (keyVaultWarning.ExpiringCertificates.Any() || keyVaultWarning.ExpiringLegacyCertificates.Any())
                     {
                         builder.AppendLine("Certificates:");
                         foreach (var cert in keyVaultWarning.ExpiringCertificates)
                         {
-                            builder.AppendLine($"\t•{(cert.Attributes.Expires < DateTime.UtcNow ? " ⚠️ EXPIRED ⚠️" : "")} {cert.Identifier.Name} - Created: {cert.Attributes.Created}\tExpires: {cert.Attributes.Expires}");
+                            builder
+                                .Append("\t•")
+                                .Append(cert.Attributes.Expires < DateTime.UtcNow ? " ⚠️ EXPIRED ⚠️" : "")
+                                .Append(' ')
+                                .Append(cert.Identifier.Name).Append(" - Created: ")
+                                .Append(cert.Attributes.Created)
+                                .Append("\tExpires: ")
+                                .Append(cert.Attributes.Expires)
+                                .AppendLine();
                         }
                         foreach (var cert in keyVaultWarning.ExpiringLegacyCertificates)
                         {
-                            builder.AppendLine($"\t•{(cert.Attributes.Expires < DateTime.UtcNow ? " ⚠️ EXPIRED ⚠️" : "")} {cert.Identifier.Name} - Created: {cert.Attributes.Created}\tExpires: {cert.Attributes.Expires}");
+                            builder
+                                .Append("\t•")
+                                .Append(cert.Attributes.Expires < DateTime.UtcNow ? " ⚠️ EXPIRED ⚠️" : "")
+                                .Append(' ').Append(cert.Identifier.Name)
+                                .Append(" - Created: ")
+                                .Append(cert.Attributes.Created)
+                                .Append("\tExpires: ")
+                                .Append(cert.Attributes.Expires)
+                                .AppendLine();
                         }
                     }
                     if (keyVaultWarning.ExpiringSecrets.Any())
@@ -136,7 +163,18 @@ namespace ExpirationScanner.Logic
                         builder.AppendLine("Secrets:");
                         foreach (var secret in keyVaultWarning.ExpiringSecrets)
                         {
-                            builder.AppendLine($"\t•{(secret.Attributes.Expires < DateTime.UtcNow ? " ⚠️ EXPIRED ⚠️" : "")} {secret.Identifier.Name} {(!string.IsNullOrWhiteSpace(secret.ContentType) ? $"({secret.ContentType})" : "")} - Created: {secret.Attributes.Created}, Expires: {secret.Attributes.Expires}");
+                            builder
+                                .Append("\t•")
+                                .Append(secret.Attributes.Expires < DateTime.UtcNow ? " ⚠️ EXPIRED ⚠️" : "")
+                                .Append(' ')
+                                .Append(secret.Identifier.Name)
+                                .Append(' ')
+                                .Append(!string.IsNullOrWhiteSpace(secret.ContentType) ? $"({secret.ContentType})" : "")
+                                .Append(" - Created: ")
+                                .Append(secret.Attributes.Created)
+                                .Append(", Expires: ")
+                                .Append(secret.Attributes.Expires)
+                                .AppendLine();
                         }
                     }
                 }

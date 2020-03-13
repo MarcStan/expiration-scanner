@@ -26,10 +26,10 @@ namespace ExpirationScanner
             _notificationServices = notificationServices.ToArray();
 
             if (_notificationServices.Length == 0)
-                throw new InvalidOperationException($"At least one {typeof(INotificationService)} must be configured for the function to run as intended but none where.");
+                throw new NoNotificationTargetConfiguredException($"At least one {typeof(INotificationService)} must be configured for the function to run as intended but none where.");
 
             if (!_notificationServices.Any(x => x.IsActive))
-                throw new NotSupportedException("All notification targets are disabled!");
+                throw new NoNotificationTargetConfiguredException("All notification targets are either disabled or misconfigured!");
 
             _configuration = configuration;
             _logger = logger;
