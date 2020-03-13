@@ -2,6 +2,7 @@
 using ExpirationScanner.Logic.Azure;
 using ExpirationScanner.Logic.Extensions;
 using ExpirationScanner.Logic.Notification;
+using Microsoft.Extensions.Logging;
 using Microsoft.Graph;
 using System;
 using System.Linq;
@@ -15,13 +16,16 @@ namespace ExpirationScanner.Logic
     {
         private readonly IAzureHelper _azureHelper;
         private readonly INotificationStrategy _notificationService;
+        private readonly ILogger<AppRegistrationExpiryChecker> _logger;
 
         public AppRegistrationExpiryChecker(
             IAzureHelper azureHelper,
-            INotificationStrategy notificationService)
+            INotificationStrategy notificationService,
+            ILogger<AppRegistrationExpiryChecker> logger)
         {
             _azureHelper = azureHelper;
             _notificationService = notificationService;
+            _logger = logger;
         }
 
         public async Task CheckAsync(string[] appFilter, int certificateExpiryWaringInDays, int secretExpiryWaringInDays, CancellationToken cancellationToken)
@@ -30,13 +34,14 @@ namespace ExpirationScanner.Logic
 
             var graphServiceClient = new GraphServiceClient(new GraphApiTokenProvider(tenantId));
             var stringBuilder = new StringBuilder();
+            var now = DateTimeOffset.UtcNow;
 
             await foreach (var app in graphServiceClient.Applications.Request().ToAsyncEnumerable())
             {
                 if (!InWhitelist(app.DisplayName, appFilter))
                     continue;
 
-                var now = DateTimeOffset.UtcNow;
+                _logger.LogInformation($"Processing app registration {app.DisplayName}");
 
                 var expiringSecrets = app.PasswordCredentials
                     .Where(k => k.EndDateTime.HasValue && k.EndDateTime <= now.AddDays(secretExpiryWaringInDays))

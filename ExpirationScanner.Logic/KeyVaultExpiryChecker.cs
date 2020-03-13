@@ -80,13 +80,13 @@ namespace ExpirationScanner.Logic
                 var keys = await ReadKeysAsync(kvClient, vault, errors);
 
                 keyVaultWarning.ExpiringKeys = keys
-                    .Where(k => k.Attributes.Expires != null && k.Attributes.Expires < now.AddDays(-certificateExpiryWarningInDays))
+                    .Where(k => k.Attributes.Expires != null && k.Attributes.Expires <= now.AddDays(-certificateExpiryWarningInDays))
                     .ToArray();
 
                 var certificates = await ReadCertificatesAsync(kvClient, vault, errors);
 
                 keyVaultWarning.ExpiringCertificates = certificates
-                    .Where(c => c.Attributes.Expires != null && c.Attributes.Expires < now.AddDays(-certificateExpiryWarningInDays))
+                    .Where(c => c.Attributes.Expires != null && c.Attributes.Expires <= now.AddDays(-certificateExpiryWarningInDays))
                     .ToArray();
 
                 var secrets = await ReadSecretsAsync(kvClient, vault, errors);
@@ -119,7 +119,7 @@ namespace ExpirationScanner.Logic
                         {
                             builder
                                 .Append("\t•")
-                                .Append(key.Attributes.Expires < DateTime.UtcNow ? " ⚠️ EXPIRED ⚠️" : "")
+                                .Append(key.Attributes.Expires <= now ? " ⚠️ EXPIRED ⚠️" : "")
                                 .Append(' ')
                                 .Append(key.Identifier.Name)
                                 .Append(' ')
@@ -139,7 +139,7 @@ namespace ExpirationScanner.Logic
                         {
                             builder
                                 .Append("\t•")
-                                .Append(cert.Attributes.Expires < now ? " ⚠️ EXPIRED ⚠️" : "")
+                                .Append(cert.Attributes.Expires <= now ? " ⚠️ EXPIRED ⚠️" : "")
                                 .Append(' ')
                                 .Append(cert.Identifier.Name).Append(" - Created: ")
                                 .Append(cert.Attributes.Created)
@@ -151,7 +151,7 @@ namespace ExpirationScanner.Logic
                         {
                             builder
                                 .Append("\t•")
-                                .Append(cert.Attributes.Expires < now ? " ⚠️ EXPIRED ⚠️" : "")
+                                .Append(cert.Attributes.Expires <= now ? " ⚠️ EXPIRED ⚠️" : "")
                                 .Append(' ').Append(cert.Identifier.Name)
                                 .Append(" - Created: ")
                                 .Append(cert.Attributes.Created)
@@ -167,7 +167,7 @@ namespace ExpirationScanner.Logic
                         {
                             builder
                                 .Append("\t•")
-                                .Append(secret.Attributes.Expires < DateTime.UtcNow ? " ⚠️ EXPIRED ⚠️" : "")
+                                .Append(secret.Attributes.Expires <= now ? " ⚠️ EXPIRED ⚠️" : "")
                                 .Append(' ')
                                 .Append(secret.Identifier.Name)
                                 .Append(' ')
