@@ -19,7 +19,7 @@ namespace ExpirationScanner.Logic.Azure
     {
         private readonly HttpClient _httpClient;
         private readonly IConfiguration _configuration;
-        private ConcurrentDictionary<string, string> _tenantIdLookup = new ConcurrentDictionary<string, string>();
+        private readonly ConcurrentDictionary<string, string> _tenantIdLookup = new ConcurrentDictionary<string, string>();
 
         /// <summary>
         /// Creates a new instance.
