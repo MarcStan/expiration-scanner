@@ -10,6 +10,8 @@ namespace ExpirationScanner.Logic
             Vault = vault;
         }
 
+        public KeyItem[] ExpiringKeys { get; set; }
+
         public SecretItem[] ExpiringSecrets { get; set; }
 
         public SecretItem[] ExpiringLegacyCertificates { get; set; }

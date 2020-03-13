@@ -3,6 +3,7 @@ using ExpirationScanner.Logic.Extensions;
 using ExpirationScanner.Logic.Notification;
 using Microsoft.Azure.KeyVault;
 using Microsoft.Azure.KeyVault.Models;
+using Microsoft.Azure.Management.KeyVault.Fluent;
 using Microsoft.Azure.Management.ResourceManager.Fluent;
 using Microsoft.Azure.Management.ResourceManager.Fluent.Authentication;
 using Microsoft.Azure.Management.ResourceManager.Fluent.Core;
@@ -65,6 +66,8 @@ namespace ExpirationScanner.Logic
             var errors = new List<string>();
             var builder = new StringBuilder();
 
+            var now = DateTimeOffset.UtcNow;
+
             await foreach (var vault in azure.Vaults.ToAsyncEnumerable())
             {
                 if (!InWhitelist(vault.Name, keyVaultFilter))
@@ -74,70 +77,69 @@ namespace ExpirationScanner.Logic
 
                 _logger.LogInformation($"Processing keyvault {vault.Name}");
 
-                var certificates = new List<CertificateItem>();
-                IPage<CertificateItem> certificatesPage = null;
-                try
-                {
-                    certificatesPage = await kvClient.GetCertificatesAsync(vault.VaultUri);
-                    certificates.AddRange(certificatesPage.ToList());
-                }
-                catch (KeyVaultErrorException ex)
-                {
-                    errors.Add($"Error: Could Not Access Vault Certificates {vault.Name} - {ex.Message}");
-                }
+                var keys = await ReadKeysAsync(kvClient, vault, errors);
 
-                while (certificatesPage?.NextPageLink != null)
-                {
-                    certificatesPage = await kvClient.GetCertificatesNextAsync(certificatesPage?.NextPageLink);
-                    certificates.AddRange(certificatesPage.ToList());
-                }
-
-                keyVaultWarning.ExpiringCertificates = certificates
-                    .Where(c => c.Attributes.Expires != null && c.Attributes.Expires < DateTime.UtcNow.AddDays(-certificateExpiryWarningInDays))
+                keyVaultWarning.ExpiringKeys = keys
+                    .Where(k => k.Attributes.Expires != null && k.Attributes.Expires < now.AddDays(-certificateExpiryWarningInDays))
                     .ToArray();
 
-                var secrets = new List<SecretItem>();
-                IPage<SecretItem> secretsPage = null;
-                try
-                {
-                    secretsPage = await kvClient.GetSecretsAsync(vault.VaultUri);
-                    secrets.AddRange(secretsPage.ToList());
-                }
-                catch (KeyVaultErrorException ex)
-                {
-                    errors.Add($"Error: Could Not Access Vault Secrets {vault.Name} - {ex.Message}");
-                }
+                var certificates = await ReadCertificatesAsync(kvClient, vault, errors);
 
-                while (secretsPage?.NextPageLink != null)
-                {
-                    secretsPage = await kvClient.GetSecretsNextAsync(secretsPage?.NextPageLink);
-                    secrets.AddRange(secretsPage.ToList());
-                }
+                keyVaultWarning.ExpiringCertificates = certificates
+                    .Where(c => c.Attributes.Expires != null && c.Attributes.Expires < now.AddDays(-certificateExpiryWarningInDays))
+                    .ToArray();
+
+                var secrets = await ReadSecretsAsync(kvClient, vault, errors);
 
                 var unmanagedSecrets = secrets.Where(s => s.Managed != true && s.ContentType != "application/x-pkcs12");
                 keyVaultWarning.ExpiringSecrets = unmanagedSecrets
-                    .Where(c => c.Attributes.Expires != null && c.Attributes.Expires < DateTime.UtcNow.AddDays(secretExpiryWarningInDays))
-                    .ToArray();
-                var legacyCertificates = secrets.Where(s => s.Managed != true && s.ContentType == "application/x-pkcs12");
-                keyVaultWarning.ExpiringLegacyCertificates = legacyCertificates
-                    .Where(c => c.Attributes.Expires != null && c.Attributes.Expires < DateTime.UtcNow.AddDays(certificateExpiryWarningInDays))
+                    .Where(c => c.Attributes.Expires != null && c.Attributes.Expires < now.AddDays(secretExpiryWarningInDays))
                     .ToArray();
 
-                if (keyVaultWarning.ExpiringCertificates.Any() || keyVaultWarning.ExpiringLegacyCertificates.Any() || keyVaultWarning.ExpiringSecrets.Any())
+                // old way of storing certificates as secrets -> treat these as certificates instead of secrets
+                var legacyCertificates = secrets.Where(s => s.Managed != true && s.ContentType == "application/x-pkcs12");
+                keyVaultWarning.ExpiringLegacyCertificates = legacyCertificates
+                    .Where(c => c.Attributes.Expires != null && c.Attributes.Expires < now.AddDays(certificateExpiryWarningInDays))
+                    .ToArray();
+
+                if (keyVaultWarning.ExpiringKeys.Any() ||
+                    keyVaultWarning.ExpiringCertificates.Any() ||
+                    keyVaultWarning.ExpiringLegacyCertificates.Any() ||
+                    keyVaultWarning.ExpiringSecrets.Any())
                 {
                     builder
                         .Append("🔑 KeyVault ")
                         .Append(vault.Name)
-                        .AppendLine(" has entries about to expire");
+                        .AppendLine(" has entries about to expire!");
 
-                    if (keyVaultWarning.ExpiringCertificates.Any() || keyVaultWarning.ExpiringLegacyCertificates.Any())
+                    if (keyVaultWarning.ExpiringKeys.Any())
+                    {
+                        builder.AppendLine("Keys:");
+                        foreach (var key in keyVaultWarning.ExpiringKeys)
+                        {
+                            builder
+                                .Append("\t•")
+                                .Append(key.Attributes.Expires < DateTime.UtcNow ? " ⚠️ EXPIRED ⚠️" : "")
+                                .Append(' ')
+                                .Append(key.Identifier.Name)
+                                .Append(' ')
+                                .Append(!string.IsNullOrWhiteSpace(key.Kid) ? $"({key.Kid})" : "")
+                                .Append(" - Created: ")
+                                .Append(key.Attributes.Created)
+                                .Append(", Expires: ")
+                                .Append(key.Attributes.Expires)
+                                .AppendLine();
+                        }
+                    }
+                    if (keyVaultWarning.ExpiringCertificates.Any() ||
+                        keyVaultWarning.ExpiringLegacyCertificates.Any())
                     {
                         builder.AppendLine("Certificates:");
                         foreach (var cert in keyVaultWarning.ExpiringCertificates)
                         {
                             builder
                                 .Append("\t•")
-                                .Append(cert.Attributes.Expires < DateTime.UtcNow ? " ⚠️ EXPIRED ⚠️" : "")
+                                .Append(cert.Attributes.Expires < now ? " ⚠️ EXPIRED ⚠️" : "")
                                 .Append(' ')
                                 .Append(cert.Identifier.Name).Append(" - Created: ")
                                 .Append(cert.Attributes.Created)
@@ -149,7 +151,7 @@ namespace ExpirationScanner.Logic
                         {
                             builder
                                 .Append("\t•")
-                                .Append(cert.Attributes.Expires < DateTime.UtcNow ? " ⚠️ EXPIRED ⚠️" : "")
+                                .Append(cert.Attributes.Expires < now ? " ⚠️ EXPIRED ⚠️" : "")
                                 .Append(' ').Append(cert.Identifier.Name)
                                 .Append(" - Created: ")
                                 .Append(cert.Attributes.Created)
@@ -185,6 +187,72 @@ namespace ExpirationScanner.Logic
 
             if (errors.Any())
                 await _notificationService.BroadcastNotificationAsync(string.Join("\n", errors), cancellationToken);
+        }
+
+        private async Task<ICollection<KeyItem>> ReadKeysAsync(KeyVaultClient kvClient, IVault vault, List<string> errors)
+        {
+            var keys = new List<KeyItem>();
+            IPage<KeyItem> keysPage = null;
+            try
+            {
+                keysPage = await kvClient.GetKeysAsync(vault.VaultUri);
+                keys.AddRange(keysPage.ToList());
+            }
+            catch (KeyVaultErrorException ex)
+            {
+                errors.Add($"Error: Could Not Access Vault Keys {vault.Name} - {ex.Message}");
+            }
+
+            while (keysPage?.NextPageLink != null)
+            {
+                keysPage = await kvClient.GetKeysNextAsync(keysPage?.NextPageLink);
+                keys.AddRange(keysPage.ToList());
+            }
+            return keys;
+        }
+
+        private async Task<ICollection<SecretItem>> ReadSecretsAsync(KeyVaultClient kvClient, IVault vault, List<string> errors)
+        {
+            var secrets = new List<SecretItem>();
+            IPage<SecretItem> secretsPage = null;
+            try
+            {
+                secretsPage = await kvClient.GetSecretsAsync(vault.VaultUri);
+                secrets.AddRange(secretsPage.ToList());
+            }
+            catch (KeyVaultErrorException ex)
+            {
+                errors.Add($"Error: Could Not Access Vault Secrets {vault.Name} - {ex.Message}");
+            }
+
+            while (secretsPage?.NextPageLink != null)
+            {
+                secretsPage = await kvClient.GetSecretsNextAsync(secretsPage?.NextPageLink);
+                secrets.AddRange(secretsPage.ToList());
+            }
+            return secrets;
+        }
+
+        private async Task<ICollection<CertificateItem>> ReadCertificatesAsync(KeyVaultClient kvClient, IVault vault, List<string> errors)
+        {
+            var certificates = new List<CertificateItem>();
+            IPage<CertificateItem> certificatesPage = null;
+            try
+            {
+                certificatesPage = await kvClient.GetCertificatesAsync(vault.VaultUri);
+                certificates.AddRange(certificatesPage.ToList());
+            }
+            catch (KeyVaultErrorException ex)
+            {
+                errors.Add($"Error: Could Not Access Vault Certificates {vault.Name} - {ex.Message}");
+            }
+
+            while (certificatesPage?.NextPageLink != null)
+            {
+                certificatesPage = await kvClient.GetCertificatesNextAsync(certificatesPage?.NextPageLink);
+                certificates.AddRange(certificatesPage.ToList());
+            }
+            return certificates;
         }
 
         private bool InWhitelist(string name, string[] keyVaultFilter)

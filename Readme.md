@@ -5,11 +5,13 @@ Automation to check credential expiration and issue warnings before they do.
 Azure functions that run on a schedule to check for:
 
 - client secret expiration on app registrations
-- secret/certificate expiration (based on keyvault metadata within the current subscription)
+- key/secret/certificate expiration (based on keyvault metadata within the current subscription)
 
 ## KeyVault Expiration
 
-Uses the managed identity of the function to access keyvaults (reads all keyvaults in the subscription by default). The function needs `list` access for both secrets & certificates in all keyvaults (does not grant access to the secret value but only the metadata).
+Uses the managed identity of the function to access keyvaults (reads all keyvaults in the subscription by default). The function needs `list` access for keys, secrets & certificates in all keyvaults (does not grant access to the secret value but only the metadata).
+
+It is possible to exclude keyvaults as well.
 
 To set up these permissions for an entire subscription run [Set-KeyVaultPermissions.ps1](./Set-KeyVaultPermissions.ps1) (must have permission to list/update all keyvaults in the subscription).
 
@@ -17,7 +19,8 @@ Additionally the function must be able to list the keyvaults themselves. To do s
 
 ### App configuration (environment variables):
 
-- `KeyVault:Whitelist`: (optional), comma separated list of keyvaults to be included. Supports filtering with \*. E.g. "My-kv,Company-*,*-DEV" will return "My-kv", all keyvaults starting with "Company-" and all keyvaults ending with "-DEV". If blank will check all keyvaults.
+- `KeyVault:Whitelist`: (optional, defaults to "\*"), comma separated list of keyvaults to be included. Supports filtering with \*. E.g. "My-kv,Company-*,*-DEV" will return "My-kv", all keyvaults starting with "Company-" and all keyvaults ending with "-DEV".
+- `KeyVault:Key:WarningThresholdInDays`: (default: 60). The number of days before secret expiry after which warnings are issued.
 - `KeyVault:Secret:WarningThresholdInDays`: (default: 60). The number of days before secret expiry after which warnings are issued.
 - `KeyVault:Certificate:WarningThresholdInDays`: (default: 60). The number of days before certificate expiry after which warnings are issued.
 
@@ -47,12 +50,28 @@ These configuration values are used by both functions:
 
 ## Notifications
 
-One of these values **must** be set (multiple **can** be set). Each configured target will receive the same message:
+One of these targets  **must** be configured (multiple **can** be set). Each configured target will receive the same message:
 
-- `Notification:SendGrid:Key`: If set (must be a key that has `mail send` permission) will cause the alerts to be sent as emails via SendGrid. Note that each function will agreggate all outputs into one message but aggregation does not happen across function (i.e. keyvault & app registration secret expiration cause two separate emails). Also requires `Notification:SendGrid:From` and `Notification:SendGrid:To` to be set to email addresses. Optionally `Notification:SendGrid:Subject` can also be set (defaults to `Expiry notification`).
+### SendGrid
 
-- `Notification:Slack:WebHook`: If set will cause alerts to be sent to a slack channel. You must setup a [slack app](https://api.slack.com/messaging/webhooks).
+Deliver an email to one or multiple users. Requires SendGrid account to be set up and configured.
 
-Additionally the message is also logged via the logger output by default (console/app insights). To disable set `Notificaton:Logger:Disable` to `true`.
+- `Notification:SendGrid:Key`: If set (must be a key that has `'mail send'` permission) will cause the alerts to be sent as emails via SendGrid. Note that each function will agreggate all outputs into one message but aggregation does not happen across function (i.e. keyvault & app registration secret expiration cause two separate emails). Will also send separate messages for the acutal warnings and access issues (e.g. no access to keyvault)
 
-For KeyVault replace `:` with `--`. For environment variables, replace it with: `__`.
+Also requires:
+
+* `Notification:SendGrid:From`: Email from which to send
+* `Notification:SendGrid:To`: One or multiple emails (separated by `,`) to which emails should be delivered
+* `Notification:SendGrid:Subject` (optional, defaults to `Expiry notification`). If set will be used as email subject.
+
+### Slack
+
+Send messages into a slack channel. You must setup a [slack app](https://api.slack.com/messaging/webhooks).
+
+- `Notification:Slack:WebHook`: If set will cause alerts to be sent to the attached slack channel.
+
+### Logger
+
+Additionally the message is logged via the logger output by default (console/app insights). To disable set `Notificaton:Logger:Disable` to `true`.
+
+Tip: For settings stored in KeyVault replace `:` with `--`. For settings stored as environment variables, replace it with: `__`.
