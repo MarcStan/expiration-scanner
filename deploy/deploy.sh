@@ -3,4 +3,5 @@
 az group deployment create \
         --name "$(date +'%Y%m%d-%H%M%S')" \
         --resource-group $1 \
-        --template-file deploy.json
+        --template-file deploy.json \
+        --parameters userObjectId=$2

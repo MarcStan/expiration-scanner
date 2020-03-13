@@ -95,7 +95,6 @@
                         }
                     },
                     {
-                        "enabled": "[not(equals(parameters('userObjectId'), ''))]",
                         "tenantId": "[reference(resourceId('Microsoft.Web/sites', variables('functionAppName')), '2016-08-01', 'Full').identity.tenantId]",
                         "objectId": "[parameters('userObjectId')]",
                         "permissions": {
