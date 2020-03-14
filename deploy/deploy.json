@@ -164,7 +164,8 @@
                         "APPINSIGHTS_INSTRUMENTATIONKEY": "[reference(resourceId('microsoft.insights/components/', variables('appInsightsName')), '2015-05-01').InstrumentationKey]",
                         "WEBSITE_RUN_FROM_PACKAGE": "1",
                         "FUNCTIONS_WORKER_RUNTIME": "dotnet",
-                        "SubscriptionId": "[subscription().SubscriptionId]"
+                        "SubscriptionId": "[subscription().SubscriptionId]",
+                        "KeyVaultName": "[variables('keyVaultName')]"
                     }
                 }
             ]
