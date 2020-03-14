@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Configuration;
 using SendGrid;
 using SendGrid.Helpers.Mail;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -31,15 +32,13 @@ namespace ExpirationScanner.Logic.Notification
 
             var key = _configuration[_apiKeyKey];
             var from = _configuration.GetRequiredValue<string>(_fromKey);
-            var to = _configuration.GetRequiredValue<string>(_toKey);
 
             // optional
             var subject = _configuration.GetValue<string>("Notification:SendGrid:Subject") ?? DefaultSubject;
 
             var client = new SendGridClient(key);
-            var mail = MailHelper.CreateSingleEmail(new EmailAddress(from), new EmailAddress(to), subject, text, null);
-
-            await client.SendEmailAsync(mail, cancellationToken);
+            var addresses = _configuration.GetRequiredValue<string>(_toKey).Split(',', ';');
+            await Task.WhenAll(addresses.Select(to => client.SendEmailAsync(MailHelper.CreateSingleEmail(new EmailAddress(from), new EmailAddress(to), subject, text, null), cancellationToken)));
         }
     }
 }
