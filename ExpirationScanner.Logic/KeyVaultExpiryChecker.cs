@@ -117,16 +117,17 @@ namespace ExpirationScanner.Logic
                         builder.AppendLine("Keys:");
                         foreach (var key in keyVaultWarning.ExpiringKeys)
                         {
+                            bool expired = key.Attributes.Expires <= now;
                             builder
                                 .Append("\t•")
-                                .Append(key.Attributes.Expires <= now ? " ⚠️ EXPIRED ⚠️" : "")
+                                .Append(expired ? " ❌ EXPIRED ❌" : "⚠️")
                                 .Append(' ')
                                 .Append(key.Identifier.Name)
                                 .Append(' ')
                                 .Append(!string.IsNullOrWhiteSpace(key.Kid) ? $"({key.Kid})" : "")
                                 .Append(" - Created: ")
                                 .Append(key.Attributes.Created)
-                                .Append(", Expires: ")
+                                .Append(expired ? ", Expired: " : ", Expires: ")
                                 .Append(key.Attributes.Expires)
                                 .AppendLine();
                         }
@@ -137,25 +138,27 @@ namespace ExpirationScanner.Logic
                         builder.AppendLine("Certificates:");
                         foreach (var cert in keyVaultWarning.ExpiringCertificates)
                         {
+                            var expired = cert.Attributes.Expires <= now;
                             builder
                                 .Append("\t•")
-                                .Append(cert.Attributes.Expires <= now ? " ⚠️ EXPIRED ⚠️" : "")
+                                .Append(expired ? " ❌ EXPIRED ❌" : "⚠️")
                                 .Append(' ')
                                 .Append(cert.Identifier.Name).Append(" - Created: ")
                                 .Append(cert.Attributes.Created)
-                                .Append("\tExpires: ")
+                                .Append(expired ? "\tExpired: " : "\tExpires: ")
                                 .Append(cert.Attributes.Expires)
                                 .AppendLine();
                         }
                         foreach (var cert in keyVaultWarning.ExpiringLegacyCertificates)
                         {
+                            var expired = cert.Attributes.Expires <= now;
                             builder
                                 .Append("\t•")
-                                .Append(cert.Attributes.Expires <= now ? " ⚠️ EXPIRED ⚠️" : "")
+                                .Append(expired ? " ❌ EXPIRED ❌" : "⚠️")
                                 .Append(' ').Append(cert.Identifier.Name)
                                 .Append(" - Created: ")
                                 .Append(cert.Attributes.Created)
-                                .Append("\tExpires: ")
+                                .Append(expired ? "\tExpired: " : "\tExpires: ")
                                 .Append(cert.Attributes.Expires)
                                 .AppendLine();
                         }
@@ -165,16 +168,17 @@ namespace ExpirationScanner.Logic
                         builder.AppendLine("Secrets:");
                         foreach (var secret in keyVaultWarning.ExpiringSecrets)
                         {
+                            var expired = secret.Attributes.Expires <= now;
                             builder
                                 .Append("\t•")
-                                .Append(secret.Attributes.Expires <= now ? " ⚠️ EXPIRED ⚠️" : "")
+                                .Append(expired ? " ❌ EXPIRED ❌" : "⚠️")
                                 .Append(' ')
                                 .Append(secret.Identifier.Name)
                                 .Append(' ')
                                 .Append(!string.IsNullOrWhiteSpace(secret.ContentType) ? $"({secret.ContentType})" : "")
                                 .Append(" - Created: ")
                                 .Append(secret.Attributes.Created)
-                                .Append(", Expires: ")
+                                .Append(expired ? ", Expired: " : ", Expires: ")
                                 .Append(secret.Attributes.Expires)
                                 .AppendLine();
                         }
