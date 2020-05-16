@@ -24,9 +24,11 @@ $kvlist = az keyvault list --subscription $Subscription --query "[].{name: name}
 $keyvaults = $kvlist.Split([Environment]::NewLine)
 
 foreach ($kv in $keyvaults) {
+    if ($kv -eq "expiration-scanner") {
+        continue
+    }
     Write-Output "Assigning List permission to service principal $($ServicePrincipalObjectId) on KeyVault $($kv)"
     if (!$WhatIf.IsPresent) {
         az keyvault set-policy --subscription $Subscription  --key-permissions "list" --certificate-permissions "list" --secret-permissions "list" --object-id $ServicePrincipalObjectId -n $kv
     }
 }
-
