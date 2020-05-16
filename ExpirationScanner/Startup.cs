@@ -5,6 +5,7 @@ using ExpirationScanner.Logic.Notification;
 using Microsoft.Azure.Functions.Extensions.DependencyInjection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using System.Net.Http;
 
 [assembly: FunctionsStartup(typeof(ExpirationScanner.Startup))]
 namespace ExpirationScanner
@@ -42,6 +43,7 @@ namespace ExpirationScanner
             builder.Services.AddSingleton<AzureManagementTokenProvider>();
             builder.Services.AddSingleton<KeyVaultExpiryChecker>();
             builder.Services.AddSingleton<AppRegistrationExpiryChecker>();
+            builder.Services.AddSingleton<HttpClient>();
         }
     }
 }
