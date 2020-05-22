@@ -24,12 +24,11 @@ namespace ExpirationScanner.Logic.Azure
         /// <summary>
         /// Creates a new instance.
         /// </summary>
-        /// <param name="handler">Used for testing overrides</param>
         public AzureHelper(
             IConfiguration configuration,
-            HttpMessageHandler handler = null)
+            HttpClient httpClient)
         {
-            _httpClient = new HttpClient(handler ?? new HttpClientHandler());
+            _httpClient = httpClient;
             _configuration = configuration;
         }
 

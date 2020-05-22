@@ -30,7 +30,6 @@ namespace ExpirationScanner
                     .Build();
 
             builder.Services.AddSingleton<IConfiguration>(config);
-            builder.Services.AddHttpClient();
             builder.Services.Scan(scan =>
             {
                 scan.FromAssemblyOf<INotificationService>()
@@ -38,12 +37,12 @@ namespace ExpirationScanner
                     .AsSelfWithInterfaces()
                     .WithSingletonLifetime();
             });
+            builder.Services.AddSingleton(new HttpClient());
             builder.Services.AddSingleton<IAzureHelper, AzureHelper>();
             builder.Services.AddSingleton<INotificationStrategy, AggregatedNotificationService>();
             builder.Services.AddSingleton<AzureManagementTokenProvider>();
             builder.Services.AddSingleton<KeyVaultExpiryChecker>();
             builder.Services.AddSingleton<AppRegistrationExpiryChecker>();
-            builder.Services.AddSingleton<HttpClient>();
         }
     }
 }

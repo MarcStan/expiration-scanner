@@ -27,7 +27,7 @@ namespace ExpirationScanner.Tests
                     .AddEnvironmentVariables()
                     .Build();
 
-                var az = new AzureHelper(config);
+                var az = new AzureHelper(config, new HttpClient(new MockHttpMessageHandler(x => null)));
                 az.GetSubscriptionId().Should().Be(fakeSubscriptionId);
             }
             finally
@@ -45,7 +45,7 @@ namespace ExpirationScanner.Tests
                 .AddEnvironmentVariables()
                 .Build();
 
-            var az = new AzureHelper(config);
+            var az = new AzureHelper(config, new HttpClient(new MockHttpMessageHandler(x => null)));
             new Action(() => az.GetSubscriptionId()).Should().Throw<KeyNotFoundException>();
         }
 
@@ -75,7 +75,7 @@ namespace ExpirationScanner.Tests
                         $"authorization_uri=\"https://login.windows.net/{fakeTenantId}\", error=\"invalid_token\", error_description=\"The authentication failed because of missing 'Authorization' header.\""));
                     return resp;
                 });
-                var az = new AzureHelper(config, mock);
+                var az = new AzureHelper(config, new HttpClient(mock));
 
                 // act + verify
                 var t = await az.GetTenantIdAsync(CancellationToken.None);
