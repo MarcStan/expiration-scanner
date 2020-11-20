@@ -2,7 +2,6 @@
     "IsEncrypted": false,
     "Values": {
         "AzureWebJobsStorage": "UseDevelopmentStorage=true",
-        "AzureWebJobsDashboard": "UseDevelopmentStorage=true",
         "FUNCTIONS_WORKER_RUNTIME": "dotnet",
         // fill in your subscription id when running locally (or set environment variable)
         // "SubscriptionId": ""
