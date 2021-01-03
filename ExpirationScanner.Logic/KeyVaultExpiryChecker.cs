@@ -80,13 +80,13 @@ namespace ExpirationScanner.Logic
                 var keys = await ReadKeysAsync(kvClient, vault, errors);
 
                 keyVaultWarning.ExpiringKeys = keys
-                    .Where(k => k.Attributes.Expires != null && k.Attributes.Expires <= now.AddDays(-certificateExpiryWarningInDays))
+                    .Where(k => k.Attributes.Expires != null && k.Attributes.Expires <= now.AddDays(certificateExpiryWarningInDays))
                     .ToArray();
 
                 var certificates = await ReadCertificatesAsync(kvClient, vault, errors);
 
                 keyVaultWarning.ExpiringCertificates = certificates
-                    .Where(c => c.Attributes.Expires != null && c.Attributes.Expires <= now.AddDays(-certificateExpiryWarningInDays))
+                    .Where(c => c.Attributes.Expires != null && c.Attributes.Expires <= now.AddDays(certificateExpiryWarningInDays))
                     .ToArray();
 
                 var secrets = await ReadSecretsAsync(kvClient, vault, errors);

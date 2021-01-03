@@ -5,7 +5,7 @@
         /// <summary>
         /// Days before actual expiration from which on notifications will be issued.
         /// </summary>
-        public const int ExpiryWarningThresholdInDays = 60;
+        public const int ExpiryWarningThresholdInDays = 30;
 
         public const string KeyVaultExpirySchedule = "0 0 8 * * *";
 
